@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    ports:
+      - "{Export_port}:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: {WP_DB_username}
+      WORDPRESS_DB_PASSWORD: {WP_DB_password}
+      WORDPRESS_DB_NAME: {WP_DB_name}
+    volumes:
+      - wp_data:/var/www/html
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: {WP_DB_name}
+      MYSQL_USER: {WP_DB_username}
+      MYSQL_PASSWORD: {WP_DB_password}
+      MYSQL_ROOT_PASSWORD: {WP_DB_rootpassword}
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  wp_data:
+  db_data:
