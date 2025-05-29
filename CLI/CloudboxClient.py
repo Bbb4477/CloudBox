@@ -9,6 +9,7 @@ import subprocess
 from time import sleep
 import requests
 
+url="http://192.168.32.130:5555/JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL/"
 ServerUrl = "localhost"
 
 def generate_box_id(length: int = 10) -> str:
