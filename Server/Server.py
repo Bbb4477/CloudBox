@@ -69,7 +69,6 @@ def variableGen(inp):
                 ans.append([i,randomGen(j[1])])
     return ans
 
-
 def find(lst, x):
     for i in range(0,len(lst)):
         if lst[i]==x:
@@ -94,10 +93,6 @@ def createNewBox(arg):
         "commands": []
     }
     if arg == "default":
-        print("Services available: ", end="")
-        for i in service:
-            print(i, end=" ")
-        print()
         while (True):
             inp = input("Input your service pick: ")
             if find(service, inp) != -1:
@@ -108,7 +103,6 @@ def createNewBox(arg):
         arg = inp
 
     elif find(service, arg) == -1:
-        print("Service not found")
         return
 
     ThisBox = generate_box_id()
@@ -132,13 +126,11 @@ def find_available_ports(lower: int, upper: int, count: int = 1) -> list:
 
     # Run netstat to get list of used ports
     output = run_command("netstat -tuln")
-    print(output)
 
     # Extract all numeric ports from the output
     matches = re.findall(r':(\d+)', output)
     for port in matches:
         used_ports.add(int(port))
-    print(used_ports)
     available_ports = []
     for port in range(lower, upper + 1):
         if port not in used_ports:
@@ -170,21 +162,18 @@ def send_command(agent_ip, agent_port, command, secret):
         s.connect((agent_ip, agent_port))
         # Prepend secret path
         payload = f"{secret} {command}"
-        print(payload)
         s.sendall(payload.encode())
         output = s.recv(4096).decode()
         return output
 
 def ApplyBox(service, agentID):
     if find(listAgent(),agentID) == -1:
-        return ["Error, no Agent available"]
+        return "Error, no Agent available"
     if find(list_available_services(),service) == -1:
-        return [f"No {service} currently available in template stores"]
+        return f"No {service} currently available in template stores"
     cc = createNewBox(service)
     ans = []
-    print(ans)
     for i in cc["commands"]:
-        print(i)
         ans.append(send_command(creds["agents"][agentID]["ip"], 5000, i, creds["agents"][agentID]["API"]))
     return ans
 
@@ -262,6 +251,8 @@ def ApplyBoxAPI(api_key):
 #         ans = creds["agents"]
 #         return ans
 #     return jsonify("Invalid API key.")
+
+
 
 
 if __name__ == '__main__':
