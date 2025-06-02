@@ -218,7 +218,7 @@ def ApplyBox(service, agentID):
     payload = createNewBox(service)
     ans=[]
     for i in payload["commands"]:
-        ans.append(send_command(creds["agents"][agentID]["ip"], 5000, i, creds["agents"][agentID]["API"]))
+        ans.append(send_command(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], i, creds["agents"][agentID]["API"]))
     return ans
 
 def ApplyBoxNoInjection(service, agentID):
@@ -289,7 +289,7 @@ def boxListAPI(api_key):
 
 def boxList(agentID):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((creds["agents"][agentID]["port"], 5000))
+        s.connect((creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"]))
         payload = creds["agents"][agentID]["API"]+" box_status"
         s.sendall(payload.encode())
         output = s.recv(4096).decode()
