@@ -227,7 +227,7 @@ def ApplyBoxNoInjection(service, agentID):
     if find(list_available_services(),service) == -1:
         return f"No {service} currently available in template stores"
     payload = createNewBoxNoDirectCommand(service)
-    ans = send_command_LoopUntilFinish(creds["agents"][agentID]["ip"], 5000, payload, creds["agents"][agentID]["API"])
+    ans = send_command_LoopUntilFinish(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], payload, creds["agents"][agentID]["API"])
     return ans
 
 def check_api(api,creds):
@@ -289,7 +289,7 @@ def boxListAPI(api_key):
 
 def boxList(agentID):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect(("192.168.32.133", 5000))
+        s.connect((creds["agents"][agentID]["port"], 5000))
         payload = creds["agents"][agentID]["API"]+" box_status"
         s.sendall(payload.encode())
         output = s.recv(4096).decode()
