@@ -13,6 +13,8 @@ import string
 import subprocess
 from time import sleep
 import requests
+import base64
+import struct
 
 app = Flask(__name__)
 
@@ -121,6 +123,35 @@ def createNewBox(arg):
     ans["commands"].append(f"cat Box/{ThisBox}_{arg}/docker-compose.yml")
     return ans
 
+def createNewBoxNoDirectCommand(arg):
+    commands = ""
+    thisPath = run_command("pwd")
+    service = list_available_services()
+
+    jDeclare='{"boxID": "","compose": ""}'
+    ans=json.loads(jDeclare)
+
+    if arg == "default":
+        while (True):
+            inp = input("Input your service pick: ")
+            if find(service, inp) != -1:
+                break
+            if (inp == ""):
+                return
+            print("service not found")
+        arg = inp
+    elif find(service, arg) == -1:
+        return
+    ans["boxID"] = f"{generate_box_id()}_{arg}"
+    targetPath = thisPath + "/DockerFilesReference/" + arg + "/docker-compose.yml"
+    f = open(targetPath, "r")
+    st = ""
+    for i in f:
+        st += i
+    compose = render(st, variableGen(extract_variables_from_compose(targetPath)))
+    ans["compose"] = compose
+    return ans
+
 def find_available_ports(lower: int, upper: int, count: int = 1) -> list:
     used_ports = set()
 
@@ -166,15 +197,37 @@ def send_command(agent_ip, agent_port, command, secret):
         output = s.recv(4096).decode()
         return output
 
+def send_command_LoopUntilFinish(agent_ip, agent_port, payload, secret):
+    json_str = json.dumps(payload)
+    b64_command = base64.b64encode(json_str.encode()).decode()
+
+    # Prepare payload with length info
+    payload = f"{secret} {len(b64_command)} {b64_command}"
+    # Send payload over socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((agent_ip, agent_port))
+        s.sendall(payload.encode())
+        output = s.recv(4096).decode()
+    return output
+
 def ApplyBox(service, agentID):
     if find(listAgent(),agentID) == -1:
         return "Error, no Agent available"
     if find(list_available_services(),service) == -1:
         return f"No {service} currently available in template stores"
-    cc = createNewBox(service)
-    ans = []
-    for i in cc["commands"]:
+    payload = createNewBox(service)
+    ans=[]
+    for i in payload["commands"]:
         ans.append(send_command(creds["agents"][agentID]["ip"], 5000, i, creds["agents"][agentID]["API"]))
+    return ans
+
+def ApplyBoxNoInjection(service, agentID):
+    if find(listAgent(),agentID) == -1:
+        return "Error, no Agent available"
+    if find(list_available_services(),service) == -1:
+        return f"No {service} currently available in template stores"
+    payload = createNewBoxNoDirectCommand(service)
+    ans = send_command_LoopUntilFinish(creds["agents"][agentID]["ip"], 5000, payload, creds["agents"][agentID]["API"])
     return ans
 
 def check_api(api,creds):
@@ -187,6 +240,23 @@ def check_api(api,creds):
             return "agent"
 
     return None
+
+def socketSend(target, port, payload):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((target, port))
+            # Prepend secret path
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_status"
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_stop 1748857954_O9mUTockug_wordpress"
+            # payload = f"SpecialExecutionJZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_inspect 1748534111_8Hbj6rlsNn_wordpress"
+            # print(payload)
+            s.sendall(payload.encode())
+            output = s.recv(4096).decode()
+            print(output)
+    except Exception as e:
+        return e
+
 
 @app.route('/<api_key>/agent/list', methods=['GET'])
 def listAgent(api_key):
@@ -203,6 +273,99 @@ def listAgent() -> list:
         ans.append(i)
     return ans
 
+@app.route('/<api_key>/agent/box/list', methods=['POST'])
+def boxListAPI(api_key):
+    if check_api(api_key,creds)=="admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+
+        return jsonify(boxList(agentID))
+    return jsonify("Invalid API key.")
+
+def boxList(agentID):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect(("192.168.32.133", 5000))
+        payload = creds["agents"][agentID]["API"]+" box_status"
+        s.sendall(payload.encode())
+        output = s.recv(4096).decode()
+    return output.split(' ')
+
+
+@app.route('/<api_key>/agent/box/stats', methods=['POST'])
+def boxStatus(api_key):
+    return
+
+def boxStatus(agentID,boxID):
+    return
+
+
+@app.route('/<api_key>/agent/box/start', methods=['POST'])
+def boxStartAPI(api_key):
+    if check_api(api_key,creds)=="admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if (find(boxList(agentID), boxID) == -1):
+            return jsonify("Invalid BoxID")
+
+        return jsonify(boxStart(data["agentID"], data["boxID"]))
+
+    return jsonify("Invalid API key.")
+
+def boxStart(agentID, boxID):
+    # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} box_start {boxID}"
+    return socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload)
+
+
+@app.route('/<api_key>/agent/box/stop', methods=['POST'])
+def boxStopAPI(api_key):
+    if check_api(api_key, creds) == "admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if (find(boxList(agentID), boxID) == -1):
+            return jsonify("Invalid BoxID")
+
+        return jsonify(boxStop(data["agentID"], data["boxID"]))
+
+    return jsonify("Invalid API key.")
+
+def boxStop(agentID, boxID):
+    print(agentID, boxID)
+    # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} box_stop {boxID}"
+    print(payload)
+    return socketSend(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], payload)
+
+@app.route('/<api_key>/agent/status', methods=['POST'])
+def agentStatusAPI(api_key):
+    return
+
+def agentStatus(agentID):
+    return
+
 @app.route('/<api_key>/agent/inspect', methods=['POST'])
 def inspectAgent(api_key ):
     data = request.get_json()
@@ -215,7 +378,7 @@ def inspectAgent(api_key ):
         return jsonify("Invalid AgentID")
     return jsonify("Invalid API key.")
 
-@app.route('/<api_key>/box/availableService', methods=['GET'])
+@app.route('/<api_key>/server/availableService', methods=['GET'])
 def listServices(api_key):
     if check_api(api_key, creds) == "admin":
         DOCKER_REFERENCE_PATH = run_command("pwd") + "/DockerFilesReference"
@@ -234,7 +397,7 @@ def list_available_services():
     ]
     return services
 
-@app.route('/<api_key>/box/install', methods=['POST'])
+@app.route('/<api_key>/agent/box/install', methods=['POST'])
 def ApplyBoxAPI(api_key):
     if check_api(api_key, creds) == "admin":
         data = request.get_json()
@@ -242,7 +405,7 @@ def ApplyBoxAPI(api_key):
         #     return jsonify({"error": "Missing agentID in JSON body"}), 400
         agentID = data["agentID"]
         service = data["service"]
-        return jsonify(ApplyBox(service, agentID))
+        return jsonify(ApplyBoxNoInjection(service, agentID))
     return jsonify("Invalid API key.")
 
 # @app.route('/<api_key>/agent/list', methods=['POST'])
@@ -254,35 +417,15 @@ def ApplyBoxAPI(api_key):
 
 
 
-
 if __name__ == '__main__':
     f = open("creds.json", "r")
     creds = json.load(f)
     # print(listAgent())
     # print(list_available_services())
     # print(ApplyBox("prestashop","agent02"))
+    # cft=createNewBoxNoDirectCommand("wordpress")
+    # print(cft)
     app.run(host="0.0.0.0", port=5000)
-
-# Preset commands per agent
-
-# Storage for received outputs
-
-# @app.route('/agent/add/<agent_id>', methods=['POST'])
-# def add_Agent(agent_id):
-#     return
-#
-# @app.route('/agent/sync', methods=['GET'])
-# def add_Agent(agent_id):
-#     return
-#
-# @app.route('/get/<agent_id>', methods=['GET'])
-# def get_command(agent_id):
-#     return
-#
-# @app.route('/addTask/<agent_id>', methods=['POST'])
-# def add_command_queue(agent_id):
-#     return
-
-# @app.route(f"/{API_KEY}/agent/add/<agent_id>", methods=['POST'])
-# def add_Agent(agent_id,api):
-#     return
+    # print(createNewBoxNoDirectCommand("wordpress"))
+    # print(ApplyBoxNoInjection("wordpress","agent02"))
+    # socketSend("192.168.32.133",5000,"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress")

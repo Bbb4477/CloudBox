@@ -6,7 +6,8 @@ import os
 from time import sleep
 import yaml
 import re
-
+import base64
+import struct
 
 HOST = '0.0.0.0'
 SHAREHOST = '192.168.32.133'
@@ -62,7 +63,7 @@ def start_agent_listener():
 
                         elif (cmm[0] == "box_status"):
                             try:
-                                conn.sendall(statusBox())
+                                conn.sendall(boxList())
                             except Exception as e:
                                 conn.sendall(str(e).encode())
 
@@ -83,6 +84,94 @@ def start_agent_listener():
                 else:
                     print("[Agent] Invalid API key/path. Ignored.")
                     conn.sendall(b"Invalid API key/path.")
+
+def start_agent_listener_InjectionFix():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST, PORT))
+        s.listen(1)
+        print(f"[Agent] Listening on port {PORT}...")
+
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                data = conn.recv(1024).decode()
+                secret = data.split(' ')[0]
+                cmm = data.split(' ')
+                print(cmm)
+                if secret != SECRET_PATH:
+                    conn.sendall("Invalid secret!".encode())
+                    continue
+
+                if(cmm[1]=="box_status"):
+                    try:
+                        conn.sendall(boxList())
+                        print(f"[Agent] Valid command received: Box List")
+                    except Exception as e:
+                        conn.sendall(str(e).encode())
+
+
+                elif (cmm[1] == "box_start"):
+                    if (len(cmm) < 3):
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: Box start {cmm[2]}")
+                        try:
+                            conn.sendall(startBox(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif (cmm[1] == "box_stop"):
+                    if (len(cmm) < 3):
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: Box Stop {cmm[2]}")
+                        try:
+                            conn.sendall(stopBox(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif (cmm[1]=="box_inspect"):
+                    if (len(cmm) < 2):
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: Box Start {cmm[2]}")
+                        try:
+                            conn.sendall(inspectBox(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                else:
+                    try:
+                        secret, length_str, rest = data.split(' ', 2)
+                        length = int(length_str)
+                        if secret != SECRET_PATH:
+                            conn.sendall("Invalid secret!".encode())
+                            continue
+                        while len(rest) < length:
+                            rest += conn.recv(1024).decode()
+                        b64_command = rest[:length]
+                        json_str = base64.b64decode(b64_command).decode()
+                        commands = json.loads(json_str)
+                        ans = createNewBoxAgent(commands)
+                        print(ans)
+                        conn.sendall(ans.encode())
+                    except Exception as e:
+                        print(e)
+
+
+def createNewBoxAgent(arg):
+    boxID=arg["boxID"]
+    compose=arg["compose"]
+    try:
+        run_command(f"cd Box; mkdir {boxID}")
+        run_command(f"cd Box; cd {boxID}; echo \"{compose}\" > docker-compose.yml;")
+    except Exception as e:
+        return f"[EXCEPTION] {str(e)}"
+    return f"Create box {boxID} Successfully"
 
 def list_available_services():
     DOCKER_REFERENCE_PATH = os.path.join(os.getcwd(), "Box")
@@ -152,10 +241,15 @@ def checkBoxStatus(arg):
 
     return "running"
 
-
-def statusBox() -> bytes:
-
-    return
+def boxList() -> bytes:
+    DOCKER_REFERENCE_PATH = run_command("pwd") + "/Box"
+    services = [
+        name for name in os.listdir(DOCKER_REFERENCE_PATH)
+        if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+    ]
+    joined = ' '.join(services)
+    b = joined.encode()
+    return b
 
 def inspectBox(arg: str) -> bytes:
     return
@@ -202,7 +296,8 @@ if __name__ == "__main__":
     f = open("agentConfig.json", "r")
     o = json.load(f)
     SECRET_PATH = o['API']
-    start_agent_listener()
+    # start_agent_listener()
+    start_agent_listener_InjectionFix()
     # startBox("1748534111_8Hbj6rlsNn_wordpress")
     # stopBox("1748534111_8Hbj6rlsNn_wordpress123")
     # print(checkBoxStatus("1748534111_8Hbj6rlsNn_wordpress"))

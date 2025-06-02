@@ -3,12 +3,14 @@
       "agent01": {
         "ip": "192.168.32.132",
         "description": "Ubuntu 22.04.5 LTS",
-        "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL"
+        "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL",
+        "port": 5000
       },
       "agent02": {
         "ip": "192.168.32.133",
         "description": "Ubuntu 22.04.5 LTS",
-        "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL"
+        "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL",
+        "port": 5000
       }
     },
 
