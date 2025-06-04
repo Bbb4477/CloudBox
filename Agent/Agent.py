@@ -8,6 +8,9 @@ import yaml
 import re
 import base64
 import struct
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 HOST = '0.0.0.0'
 SHAREHOST = '192.168.32.133'
@@ -133,17 +136,23 @@ def start_agent_listener_InjectionFix():
                         except Exception as e:
                             conn.sendall(str(e).encode())
 
-                elif (cmm[1]=="box_inspect"):
+                elif (cmm[1]=="check_box"):
                     if (len(cmm) < 2):
                         print(f"[Agent] Invalid command format received")
                         conn.sendall(b"Invalid Command format.")
                     else:
                         print(f"[Agent] Valid command received: Box Start {cmm[2]}")
                         try:
-                            conn.sendall(inspectBox(cmm[2]))
+                            conn.sendall(checkBoxStatus(cmm[2]).encode())
                         except Exception as e:
                             conn.sendall(str(e).encode())
 
+                elif (cmm[1]=="agent_stats"):
+                    print(f"[Agent] Valid command received: Box Overview")
+                    try:
+                        conn.sendall(overviewAgent())
+                    except Exception as e:
+                        conn.sendall(str(e).encode())
                 else:
                     try:
                         secret, length_str, rest = data.split(' ', 2)
@@ -162,6 +171,16 @@ def start_agent_listener_InjectionFix():
                     except Exception as e:
                         print(e)
 
+def load_port_assignments():
+    """Load port assignments from port_assigned.json."""
+    try:
+        if os.path.exists("port_assigned.json"):
+            with open("port_assigned.json", "r") as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"[Agent] Error loading port_assigned.json: {e}")
+        return {}
 
 def createNewBoxAgent(arg):
     boxID=arg["boxID"]
@@ -215,31 +234,14 @@ def stopBox(arg: str) -> bytes:
         return f"[Agent] Directory {box_dir} does not exist.".encode()
 
     run_command(f"tmux send-keys -t {box_dir} C-c ")
-    sleep(2)
+    sleep(4)
+    run_command(f"tmux send-keys -t {box_dir} \'docker-compose down\' C-m")
+    sleep(4)
     run_command(f"tmux kill-session -t {box_dir}")
 
     #Function check
 
     return f"[Agent] Box {box_name} stopped successfully".encode()
-
-def checkBoxStatus(arg):
-    box_dir = os.path.join(os.getcwd(), "Box", arg)
-    box_name = box_dir.split("/")[-1]
-    if not os.path.isdir(box_dir):
-        return "nonExisted"
-    output = run_command(f"tmux capture-pane -t {box_dir} -p")
-    if output.startswith("no server running on"):
-        return "stopped"
-    if output.startswith("can't find pane:"):
-       return "stopped"
-
-    dock=run_command("docker ps")
-    for i in dock.split("\n")[1:]:
-        ob = re.split(r'\s{2,}', i)
-        print(f"{ob[1]} {ob[4]} {ob[6]}")
-
-
-    return "running"
 
 def boxList() -> bytes:
     DOCKER_REFERENCE_PATH = run_command("pwd") + "/Box"
@@ -292,18 +294,60 @@ def run_command(cmd: str) -> str:
     except Exception as e:
         return f"[EXCEPTION] {str(e)}"
 
+def extract_service_keys(yaml_file):
+    with open(yaml_file, 'r') as file:
+        data = yaml.safe_load(file)
+        services = data.get('services', {})
+        return list(services.keys())
+
+def overviewAgent():
+    return run_command(f"docker stats --no-stream --format json").encode()
+
+def checkBoxStatus(box_id: str) -> str:
+    """Check the status of a box by verifying if all services in docker-compose.yml are running in docker ps."""
+    box_dir = os.path.join(os.getcwd(), "Box", box_id)
+    box_name = box_dir.split("/")[-1]
+
+    # Check if box directory exists
+    if not os.path.isdir(box_dir):
+        return "nonExisted"
+
+    # Get services from docker-compose.yml
+    services = get_compose_services(box_dir)
+    if not services:
+        return "noServices"
+
+    # Get running containers from docker ps
+    dock_output = run_command("docker ps --format '{{.Names}}'")
+    if dock_output.startswith("[ERROR]") or dock_output.startswith("[EXCEPTION]"):
+        print(f"[Agent] Error running docker ps: {dock_output}")
+        return "errorDockerPs"
+
+    # Check if all services are running
+    running_containers = set(dock_output.splitlines())
+    expected_containers = {f"{box_name.lower()}_{service}_1" for service in services}
+
+    if expected_containers.issubset(running_containers):
+        return "running"
+    return "partial" if any(cont in running_containers for cont in expected_containers) else "stopped"
+
+def stopAgentStats() -> bytes:
+    """Stop the agent_stats tmux session."""
+    stats_session = "agent_stats"
+    try:
+        run_command(f"tmux send-keys -t {stats_session} C-c")
+        sleep(1)
+        run_command(f"tmux kill-session -t {stats_session}")
+        return f"[Agent] Stats session stopped successfully".encode()
+    except Exception as e:
+        return f"[Agent] Error stopping stats session: {e}".encode()
+
+
 if __name__ == "__main__":
     f = open("agentConfig.json", "r")
     o = json.load(f)
     SECRET_PATH = o['API']
+    ASSIGNABLE_PORTS= o['ports']
     # start_agent_listener()
     start_agent_listener_InjectionFix()
-    # startBox("1748534111_8Hbj6rlsNn_wordpress")
-    # stopBox("1748534111_8Hbj6rlsNn_wordpress123")
-    # print(checkBoxStatus("1748534111_8Hbj6rlsNn_wordpress"))
-    # box_dir = os.path.join(os.getcwd(), "Box", "1748534111_8Hbj6rlsNn_wordpress")
-    # box_name=box_dir.split("/")[-1]
-    # ans = extract_service_keys(f"{box_dir}/docker-compose.yml")
-    # for i in range(0,len(ans)):
-    #     ans[i] = f"{box_name}_{ans[i]}"
-    # print(ans)
+    # startBox("1749043882_gZYeu7UNef_wordpress")

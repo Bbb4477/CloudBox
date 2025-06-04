@@ -15,9 +15,12 @@ from time import sleep
 import requests
 import base64
 import struct
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 
+CORS(app)
 
 def generate_box_id(length: int = 10) -> str:
     timestamp = int(time.time())
@@ -253,7 +256,7 @@ def socketSend(target, port, payload):
             # print(payload)
             s.sendall(payload.encode())
             output = s.recv(4096).decode()
-            print(output)
+            return output
     except Exception as e:
         return e
 
@@ -288,12 +291,15 @@ def boxListAPI(api_key):
     return jsonify("Invalid API key.")
 
 def boxList(agentID):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"]))
-        payload = creds["agents"][agentID]["API"]+" box_status"
-        s.sendall(payload.encode())
-        output = s.recv(4096).decode()
-    return output.split(' ')
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"]))
+            payload = creds["agents"][agentID]["API"]+" box_status"
+            s.sendall(payload.encode())
+            output = s.recv(4096).decode()
+        return output.split(' ')
+    except Exception as e:
+        return e
 
 
 @app.route('/<api_key>/agent/box/stats', methods=['POST'])
@@ -407,6 +413,21 @@ def ApplyBoxAPI(api_key):
         service = data["service"]
         return jsonify(ApplyBoxNoInjection(service, agentID))
     return jsonify("Invalid API key.")
+
+@app.route('/<api_key>/agent/overview', methods=['POST'])
+def AgentOverview(api_key):
+    if check_api(api_key, creds) == "admin":
+        data = request.get_json()
+        agentID = data["agentID"]
+        return jsonify(AgentOverview(agentID))
+    return jsonify("Invalid API key.")
+
+def AgentOverview(agentID):
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} agent_stats"
+    # ans=socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload)
+    return(socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload))
+
 
 # @app.route('/<api_key>/agent/list', methods=['POST'])
 # def listAgent(api_key):

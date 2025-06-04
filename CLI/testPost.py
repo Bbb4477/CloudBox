@@ -2,15 +2,15 @@ import requests
 import json
 
 # Change this to your API server URL
-api_server = "http://26.146.251.51:5000"
+api_server = "http://192.168.32.130:5000"
 api_key = "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7"
 
-url = f"{api_server}/{api_key}/agent/box/install"
+url = f"{api_server}/{api_key}/agent/box/start"
 
 # JSON payload
 payload = {
     "agentID": "agent02",
-    "service": "wordpress"
+    "boxID": "1749043882_gZYeu7UNef_wordpress"
 }
 
 # payload = {
