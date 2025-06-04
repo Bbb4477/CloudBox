@@ -1,80 +1,452 @@
 # server.py
 from flask import Flask, jsonify, request
 from threading import Lock
+import json
+import socket
+import os
+import argparse
+import re
+from pathlib import Path
+import time
+import random
+import string
+import subprocess
+from time import sleep
+import requests
+import base64
+import struct
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 
-# Preset commands per agent
-agent_commands = {
-    "agent01": ["pwd", "ifconfig", "whoami"],
-    "agent02": ["whoami", "uptime"]
-}
+CORS(app)
 
-# Storage for received outputs
-agent_results = {}
+def generate_box_id(length: int = 10) -> str:
+    timestamp = int(time.time())
+    rand_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+    return f"{timestamp}_{rand_suffix}"
 
-lock = Lock()
+def extract_variables_from_compose(file_path):
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"File {file_path} does not exist.")
 
-@app.route('/get/<agent_id>', methods=['GET'])
-def get_command(agent_id):
-    with lock:
-        if agent_id not in agent_commands or not agent_commands[agent_id]:
-            return jsonify({"command": None})
-        cmd = agent_commands[agent_id].pop(0)
-        return jsonify({"command": cmd})
+    with open(path, 'r') as file:
+        content = file.read()
 
-@app.route('/getTask/<agent_id>', methods=['GET'])
-def get_commands(agent_id):
-    with lock:
-        if agent_id not in agent_commands or not agent_commands[agent_id]:
-            return jsonify({"command": None})
-        cmd = agent_commands[agent_id]
-        return jsonify({agent_id: cmd})
+    # Find all unique placeholders in curly braces
+    variables = re.findall(r'\{([^}]+)\}', content)
+    return sorted(set(variables))
 
-@app.route('/addTask/<agent_id>', methods=['POST'])
-def add_command_queue(agent_id):
-    data = request.json
-    command = data.get("command")
+def randomGen(f:str):
+    if 'p' in f:
+        return portAssign()
 
-    if not command:
-        return jsonify({"error": "No command provided"}), 400
+    chars = ''
+    if 't' in f:
+        chars += string.ascii_letters
+    if 'd' in f:
+        chars += string.digits
 
-    if agent_id not in agent_commands:
-        return jsonify({"error": "Agent not found"}), 404
+    # Extract number at the end (length)
+    length = int(''.join(filter(str.isdigit, f)))
 
-    agent_commands[agent_id].append(command)
-    return jsonify({"message": f"Command added to {agent_id}'s queue"}), 200
+    if not chars or length <= 0:
+        raise ValueError("Invalid format string.")
 
-@app.route('/register/<agent_id>', methods=['POST'])
-def add_agent(agent_id):
-    if agent_id not in agent_commands:
-        agent_commands[agent_id] = []  # Initialize empty command queue
-        return jsonify({"message": f"Agent '{agent_id}' registered successfully."}), 201
-    else:
-        return jsonify({"message": f"Agent '{agent_id}' is already registered."}), 200
+    return ''.join(random.choice(chars) for _ in range(length))
 
-@app.route('/report/<agent_id>', methods=['POST'])
-def receive_output(agent_id):
+def portAssign():
+    return "PORT"
+
+def variableGen(inp):
+    f = open("DockerFilesReference/RenderFormula.txt", "r")
+    formula = []
+    for i in f:
+        formula.append(i.split(","))
+    for i in formula:
+        i[1]=i[1].replace("\n","")
+    ans=[]
+    for i in inp:
+        for j in formula:
+            if str(i).__contains__(str(j[0])):
+                ans.append([i,randomGen(j[1])])
+    return ans
+
+def find(lst, x):
+    for i in range(0,len(lst)):
+        if lst[i]==x:
+            return i
+    return -1
+
+def run_command(cmd: str) -> str:
+    try:
+        result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return f"[ERROR] {result.stderr.strip()}"
+    except Exception as e:
+        return f"[EXCEPTION] {str(e)}"
+
+def createNewBox(arg):
+    commands=""
+    thisPath=run_command("pwd")
+    service = list_available_services()
+    ans={
+        "commands": []
+    }
+    if arg == "default":
+        while (True):
+            inp = input("Input your service pick: ")
+            if find(service, inp) != -1:
+                break
+            if (inp == ""):
+                return
+            print("service not found")
+        arg = inp
+
+    elif find(service, arg) == -1:
+        return
+
+    ThisBox = generate_box_id()
+    ans["commands"].append(f"cd Box; mkdir {ThisBox}_{arg}")
+
+    targetPath=thisPath+"/DockerFilesReference/"+arg+"/docker-compose.yml"
+    f = open(targetPath, "r")
+    st = ""
+    for i in f:
+        st += i
+    compose=render(st,variableGen(extract_variables_from_compose(targetPath)))
+    composepath=thisPath+"/box/"+ThisBox+"_"+arg+"/docker-compose.yml"
+    # o=open(composepath,"w")
+    # o.write(compose)
+    ans["commands"].append(f"cd Box; cd {ThisBox}_{arg}; echo \"{compose}\" > docker-compose.yml;")
+    ans["commands"].append(f"cat Box/{ThisBox}_{arg}/docker-compose.yml")
+    return ans
+
+def createNewBoxNoDirectCommand(arg):
+    commands = ""
+    thisPath = run_command("pwd")
+    service = list_available_services()
+
+    jDeclare='{"boxID": "","compose": ""}'
+    ans=json.loads(jDeclare)
+
+    if arg == "default":
+        while (True):
+            inp = input("Input your service pick: ")
+            if find(service, inp) != -1:
+                break
+            if (inp == ""):
+                return
+            print("service not found")
+        arg = inp
+    elif find(service, arg) == -1:
+        return
+    ans["boxID"] = f"{generate_box_id()}_{arg}"
+    targetPath = thisPath + "/DockerFilesReference/" + arg + "/docker-compose.yml"
+    f = open(targetPath, "r")
+    st = ""
+    for i in f:
+        st += i
+    compose = render(st, variableGen(extract_variables_from_compose(targetPath)))
+    ans["compose"] = compose
+    return ans
+
+def find_available_ports(lower: int, upper: int, count: int = 1) -> list:
+    used_ports = set()
+
+    # Run netstat to get list of used ports
+    output = run_command("netstat -tuln")
+
+    # Extract all numeric ports from the output
+    matches = re.findall(r':(\d+)', output)
+    for port in matches:
+        used_ports.add(int(port))
+    available_ports = []
+    for port in range(lower, upper + 1):
+        if port not in used_ports:
+            available_ports.append(port)
+
+    return available_ports
+
+def render(source, boxVariables : list):
+    rendered = source
+
+    # Convert list of lists into a dictionary for easier replacement
+    var_dict = {k: v for k, v in boxVariables}
+
+    # Replace all {Variable} patterns with their corresponding values
+    for key, value in var_dict.items():
+        placeholder = f"{{{key}}}"
+        rendered = rendered.replace(placeholder, str(value))
+
+    return rendered
+
+def stats(arg):
+    return
+
+def serviceStats(arg):
+    return
+
+def send_command(agent_ip, agent_port, command, secret):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((agent_ip, agent_port))
+        # Prepend secret path
+        payload = f"{secret} {command}"
+        s.sendall(payload.encode())
+        output = s.recv(4096).decode()
+        return output
+
+def send_command_LoopUntilFinish(agent_ip, agent_port, payload, secret):
+    json_str = json.dumps(payload)
+    b64_command = base64.b64encode(json_str.encode()).decode()
+
+    # Prepare payload with length info
+    payload = f"{secret} {len(b64_command)} {b64_command}"
+    # Send payload over socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((agent_ip, agent_port))
+        s.sendall(payload.encode())
+        output = s.recv(4096).decode()
+    return output
+
+def ApplyBox(service, agentID):
+    if find(listAgent(),agentID) == -1:
+        return "Error, no Agent available"
+    if find(list_available_services(),service) == -1:
+        return f"No {service} currently available in template stores"
+    payload = createNewBox(service)
+    ans=[]
+    for i in payload["commands"]:
+        ans.append(send_command(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], i, creds["agents"][agentID]["API"]))
+    return ans
+
+def ApplyBoxNoInjection(service, agentID):
+    if find(listAgent(),agentID) == -1:
+        return "Error, no Agent available"
+    if find(list_available_services(),service) == -1:
+        return f"No {service} currently available in template stores"
+    payload = createNewBoxNoDirectCommand(service)
+    ans = send_command_LoopUntilFinish(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], payload, creds["agents"][agentID]["API"])
+    return ans
+
+def check_api(api,creds):
+    if api in creds['admins'].values():
+        return "admin"
+
+        # Check in agents
+    for agent in creds['agents'].values():
+        if agent['API'] == api:
+            return "agent"
+
+    return None
+
+def socketSend(target, port, payload):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((target, port))
+            # Prepend secret path
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_status"
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+            # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_stop 1748857954_O9mUTockug_wordpress"
+            # payload = f"SpecialExecutionJZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_inspect 1748534111_8Hbj6rlsNn_wordpress"
+            # print(payload)
+            s.sendall(payload.encode())
+            output = s.recv(4096).decode()
+            return output
+    except Exception as e:
+        return e
+
+
+@app.route('/<api_key>/agent/list', methods=['GET'])
+def listAgent(api_key):
+    if check_api(api_key,creds)=="admin":
+        ans = creds["agents"]
+        for i in ans:
+            ans[i]["API"]="********"
+        return ans
+    return jsonify("Invalid API key.")
+
+def listAgent() -> list:
+    ans=[]
+    for i in creds["agents"]:
+        ans.append(i)
+    return ans
+
+@app.route('/<api_key>/agent/box/list', methods=['POST'])
+def boxListAPI(api_key):
+    if check_api(api_key,creds)=="admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+
+        return jsonify(boxList(agentID))
+    return jsonify("Invalid API key.")
+
+def boxList(agentID):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"]))
+            payload = creds["agents"][agentID]["API"]+" box_status"
+            s.sendall(payload.encode())
+            output = s.recv(4096).decode()
+        return output.split(' ')
+    except Exception as e:
+        return e
+
+
+@app.route('/<api_key>/agent/box/stats', methods=['POST'])
+def boxStatus(api_key):
+    return
+
+def boxStatus(agentID,boxID):
+    return
+
+
+@app.route('/<api_key>/agent/box/start', methods=['POST'])
+def boxStartAPI(api_key):
+    if check_api(api_key,creds)=="admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if (find(boxList(agentID), boxID) == -1):
+            return jsonify("Invalid BoxID")
+
+        return jsonify(boxStart(data["agentID"], data["boxID"]))
+
+    return jsonify("Invalid API key.")
+
+def boxStart(agentID, boxID):
+    # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} box_start {boxID}"
+    return socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload)
+
+
+@app.route('/<api_key>/agent/box/stop', methods=['POST'])
+def boxStopAPI(api_key):
+    if check_api(api_key, creds) == "admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+
+        agentID = data["agentID"]
+        if (find(listAgent(), agentID) == -1):
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if (find(boxList(agentID), boxID) == -1):
+            return jsonify("Invalid BoxID")
+
+        return jsonify(boxStop(data["agentID"], data["boxID"]))
+
+    return jsonify("Invalid API key.")
+
+def boxStop(agentID, boxID):
+    print(agentID, boxID)
+    # payload = f"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress"
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} box_stop {boxID}"
+    print(payload)
+    return socketSend(creds["agents"][agentID]["ip"], creds["agents"][agentID]["port"], payload)
+
+@app.route('/<api_key>/agent/status', methods=['POST'])
+def agentStatusAPI(api_key):
+    return
+
+def agentStatus(agentID):
+    return
+
+@app.route('/<api_key>/agent/inspect', methods=['POST'])
+def inspectAgent(api_key ):
     data = request.get_json()
-    cmd = data.get("command")
-    output = data.get("output")
-    with lock:
-        if agent_id not in agent_results:
-            agent_results[agent_id] = []
-        agent_results[agent_id].append({"command": cmd, "output": output})
-    print(f"[Server] Output from {agent_id} - {cmd}:\n{output}")
-    return jsonify({"status": "received"})
+    if not data or "agentID" not in data:
+        return jsonify({"error": "Missing agentID in JSON body"}), 400
+    agentID = data["agentID"]
+    if check_api(api_key, creds) == "admin":
+        if(find(listAgent(),agentID)!=-1):
+            return creds["agents"][agentID]
+        return jsonify("Invalid AgentID")
+    return jsonify("Invalid API key.")
 
-@app.route('/getReport/<agent_id>', methods=['GET'])
-def get_report(agent_id):
-    with lock:
-        results = agent_results.get(agent_id, [])
-    return jsonify({"agent_id": agent_id, "reports": results}), 200
+@app.route('/<api_key>/server/availableService', methods=['GET'])
+def listServices(api_key):
+    if check_api(api_key, creds) == "admin":
+        DOCKER_REFERENCE_PATH = run_command("pwd") + "/DockerFilesReference"
+        services = [
+            name for name in os.listdir(DOCKER_REFERENCE_PATH)
+            if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+        ]
+        return jsonify(services)
+    return jsonify("Invalid API key.")
 
-@app.route('/getAgents', methods=['GET'])
-def get_agents():
-    return jsonify({"agents": list(agent_commands.keys())}), 200
+def list_available_services():
+    DOCKER_REFERENCE_PATH=run_command("pwd")+"/DockerFilesReference"
+    services = [
+        name for name in os.listdir(DOCKER_REFERENCE_PATH)
+        if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+    ]
+    return services
+
+@app.route('/<api_key>/agent/box/install', methods=['POST'])
+def ApplyBoxAPI(api_key):
+    if check_api(api_key, creds) == "admin":
+        data = request.get_json()
+        # if not data or "agentID" or "service" not in data:
+        #     return jsonify({"error": "Missing agentID in JSON body"}), 400
+        agentID = data["agentID"]
+        service = data["service"]
+        return jsonify(ApplyBoxNoInjection(service, agentID))
+    return jsonify("Invalid API key.")
+
+@app.route('/<api_key>/agent/overview', methods=['POST'])
+def AgentOverview(api_key):
+    if check_api(api_key, creds) == "admin":
+        data = request.get_json()
+        agentID = data["agentID"]
+        return jsonify(AgentOverview(agentID))
+    return jsonify("Invalid API key.")
+
+def AgentOverview(agentID):
+    secret = creds["agents"][agentID]["API"]
+    payload = f"{secret} agent_stats"
+    # ans=socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload)
+    return(socketSend(creds["agents"][agentID]["ip"],creds["agents"][agentID]["port"],payload))
+
+
+# @app.route('/<api_key>/agent/list', methods=['POST'])
+# def listAgent(api_key):
+#     if check_api(api_key,creds)=="admin":
+#         ans = creds["agents"]
+#         return ans
+#     return jsonify("Invalid API key.")
+
+
 
 if __name__ == '__main__':
+    f = open("creds.json", "r")
+    creds = json.load(f)
+    # print(listAgent())
+    # print(list_available_services())
+    # print(ApplyBox("prestashop","agent02"))
+    # cft=createNewBoxNoDirectCommand("wordpress")
+    # print(cft)
     app.run(host="0.0.0.0", port=5000)
-
+    # print(createNewBoxNoDirectCommand("wordpress"))
+    # print(ApplyBoxNoInjection("wordpress","agent02"))
+    # socketSend("192.168.32.133",5000,"JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL box_start 1748857954_O9mUTockug_wordpress")

@@ -1,0 +1,3 @@
+CONTAINER ID   NAME                                          CPU %     MEM USAGE / LIMIT     MEM %     NET I/O         BLOCK I/O        PIDS
+4719d0a6f16c   1749043882_gzyeu7unef_wordpress_wordpress_1   0.01%     15.33MiB / 1.882GiB   0.80%     1.26kB / 126B   0B / 8.19kB      6
+b2ce27f77361   1749043882_gzyeu7unef_wordpress_db_1          0.73%     347.5MiB / 1.882GiB   18.03%    1.57kB / 126B   131kB / 30.2MB   37

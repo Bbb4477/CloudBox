@@ -1,0 +1,22 @@
+{
+  "agent01": {
+    "ip": "",
+    "port": "",
+    "name": "Ubuntu...",
+    "status": "running, disconnected",
+    "box": {
+      "1748878001_kfUa3y6Duo_wordpress": {
+        "status": "running",
+        "url": "192.168.1.30:10000",
+        "cpu": "12%",
+        "memory": "1.25GB"
+      },
+      "1748878060_0j9fuVjhdo_moodle": {
+        "status": "running",
+        "url": "192.168.1.30:10001",
+        "cpu": "12%",
+        "memory": "1.25GB"
+      }
+    }
+  }
+}
