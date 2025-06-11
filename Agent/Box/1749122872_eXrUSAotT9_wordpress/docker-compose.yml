@@ -1,0 +1,36 @@
+networks:
+  wp-network:
+    driver: bridge
+services:
+  db:
+    environment:
+      MYSQL_DATABASE: pEiKDjQSEd
+      MYSQL_PASSWORD: xswaMeuFU7CIsn6eS6oD
+      MYSQL_ROOT_PASSWORD: 18xZV2Zz6RwMrQTZNNIFvsvbQjTU8G9UICmte7qC
+      MYSQL_USER: UwNkW
+    expose:
+    - 3306
+    image: mysql:8.0
+    networks:
+    - wp-network
+    volumes:
+    - db_data:/var/lib/mysql
+  wordpress:
+    depends_on:
+    - db
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: pEiKDjQSEd
+      WORDPRESS_DB_PASSWORD: xswaMeuFU7CIsn6eS6oD
+      WORDPRESS_DB_USER: UwNkW
+    image: wordpress:latest
+    networks:
+    - wp-network
+    ports:
+    - 10000:80
+    volumes:
+    - wp_data:/var/www/html
+version: '3.8'
+volumes:
+  db_data: null
+  wp_data: null
