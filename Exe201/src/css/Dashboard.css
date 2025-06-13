@@ -1,0 +1,34 @@
+.dashboard_page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dashboard_content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.agent-block {
+  border: 1px solid gray;
+  padding: 10px;
+  margin: 5px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 200px;
+}
+
+.agent-block:hover {
+  background-color: lightgray;
+}
+
+.agent-icon {
+  font-size: 20px;
+  margin-right: 10px;
+}
+
+.error {
+  color: red;
+}

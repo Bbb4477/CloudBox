@@ -1,0 +1,42 @@
+.scaling_page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scaling_content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.service-block {
+  border: 1px solid gray;
+  padding: 8px;
+  margin: 5px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100px;
+  height: 100px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.service-block:hover {
+  background-color: lightgray;
+}
+
+img {
+  width: 100%; /* hoặc kích thước mong muốn */
+  height: auto;
+  object-fit: contain; /* hoặc cover, tùy theo mục đích */
+}
+
+.service-icon {
+  margin-right: 6px;
+}
+
+.error {
+  color: red;
+}

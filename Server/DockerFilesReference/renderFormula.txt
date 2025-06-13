@@ -1,6 +1,0 @@
-DB_name,t10
-DB_username,t5
-DB_password,td20
-DB_rootpassword,td40
-Export_port,p
-hash_salt,td64

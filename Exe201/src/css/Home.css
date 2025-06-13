@@ -1,0 +1,63 @@
+.home_page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home_content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.send:hover {
+  color: blue;
+  background-color: azure;
+  cursor: pointer;
+}
+
+.container-block {
+  border: 2px solid black; /* Rectangular border for container */
+  margin: 10px;
+  width: 600px;
+}
+
+.service-block {
+  border: 1px solid gray; /* Square border for service */
+  margin: 5px;
+  display: flex;
+  align-items: center;
+  width: 100px;
+  height: 200px;
+  cursor: pointer;
+}
+
+.service-block:hover {
+  background-color: lightgray;
+}
+
+.service-icon {
+  font-size: 20px;
+  margin-right: 10px;
+}
+
+.installation {
+  margin-right: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90px;
+  width: 90px;
+  padding: 5px 10px;
+  font-size: 20px;
+  cursor: pointer;
+  margin-top: 180px;
+}
+
+.installation:hover {
+  background-color: lightgreen;
+}
+
+.container_box {
+  display: flex;
+}
