@@ -1,20 +1,51 @@
 {
     "agents": {
-      "agent01": {
-        "host": "192.168.32.132:5000",
-        "description": "Ho Chi Minh",
-        "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL"
-      },
-      "agent02": {
-        "host": "192.168.32.133:5000",
-        "description": "Bruh",
-        "API": "XxYQmJ5p8t0I5cW6z5Pc7ZlwmfjnrxE4DWhxOV1r1KHspjfMEKVHLrW7oFQIUPSd"
-      }
+        "agent01": {
+            "host": "192.168.32.132:5000",
+            "description": "Ho Chi Minh",
+            "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL"
+        },
+        "agent02": {
+            "host": "192.168.32.133:5000",
+            "description": "Bruh",
+            "API": "XxYQmJ5p8t0I5cW6z5Pc7ZlwmfjnrxE4DWhxOV1r1KHspjfMEKVHLrW7oFQIUPSd"
+        },
+        "agent03": {
+            "host": "192.168.32.136:5000",
+            "description": "Ly Xuan Mai",
+            "API": "XxYQmJ5p8t0I5cW6z5Pc7ZlwmfjnrxE4DWhxOV1r1KHspjfMEKVHLrW7oFQIUPSd"
+        },
+        "agent04": {
+            "host": "192.168.32.133:5000",
+            "description": "testing Agent Bruh",
+            "API": "LeJjaLW41J8hdN54uD29l7His5h341umb9n5ImRQnPvCGHaSpT4VU2FKCYMCntYJ"
+        }
     },
-
-
     "admins": {
-      "Administrator": "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7",
-      "bbb": "OarARnGRqZ1JXAqoLrgDyaapQKbDsYrWEtPNCyn43MEo7kSA16U5lE6pUuMR06aD"
+        "Administrator": "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7",
+        "bbb": "OarARnGRqZ1JXAqoLrgDyaapQKbDsYrWEtPNCyn43MEo7kSA16U5lE6pUuMR06aD"
+    },
+    "proxy": {
+        "ports": [
+            10000,
+            10001,
+            10002,
+            10003,
+            10004,
+            10005,
+            10006,
+            10007,
+            10008,
+            10009,
+            10010
+        ],
+        "allocation": {
+            "nginx_agent01_1749474504_X11Pn6FHg5_filebrowser_10001": {
+                "host": "192.168.32.132:10003",
+                "agentID": "agent01",
+                "boxID": "1749474504_X11Pn6FHg5_filebrowser",
+                "status": "running"
+            }
+        }
     }
 }

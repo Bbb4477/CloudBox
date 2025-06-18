@@ -11,7 +11,7 @@ services:
     networks:
     - fb-network
     ports:
-    - PORT:80
+    - 10000:80
     volumes:
     - fb_data:/srv
     - fb_config:/config

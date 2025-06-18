@@ -16,6 +16,8 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+HOST = '0.0.0.0'
+
 
 
 def load_port_allocations(write=False):
@@ -54,10 +56,12 @@ def save_port_allocations(allocations, port_file):
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 def availablePort() -> list:
-    """Return a list of available ports from agentConfig.json port ranges and standalone ports, excluding assigned and system-used ports."""
+    """Return a list of available ports from agentConfig.json, excluding assigned ports and system-used ports."""
     try:
-        # Load allowed ports from agentConfig.json (already loaded as ASSIGNABLE_PORTS)
-        allowed_ports = ASSIGNABLE_PORTS
+        # Load allowed ports from agentConfig.json
+        with open("agentConfig.json", "r") as f:
+            config = json.load(f)
+        allowed_ports = config["ports"]  # e.g., [10000, 10001, 10002, 10003]
 
         # Load current port allocations
         allocations = load_port_allocations()
@@ -275,6 +279,7 @@ def startBox(arg: str) -> bytes:
     box_dir = os.path.join(os.getcwd(), "Box", arg)
     box_name = box_dir.split("/")[-1]
 
+    # Check if box is already running
     try:
         status = json.loads(checkBoxStatus(box_name).decode())["status"]
         if status == "running":
@@ -288,32 +293,38 @@ def startBox(arg: str) -> bytes:
         logging.error(f"[Agent] Directory {box_dir} does not exist")
         return f"[Agent] Directory {box_dir} does not exist.".encode()
 
+    # Load port allocations to check if this is the first launch
     allocations = load_port_allocations()
-    is_first_launch = box_name not in allocations
+    is_first_launch = box_name not in allocations  # First launch if box_name isn't in allocations yet
 
+    # Check if box already has assigned ports
     if box_name in allocations:
         port_data = allocations[box_name]["port"]
         port = next((p for p in port_data.values() if p != "expose" and p.isdigit()), None)
         if port:
+            # Verify assigned port is still free on the system
             cmd = f"netstat -tuln | grep ':{port}'"
             result = run_command(cmd)
             if not result.startswith("[ERROR]") and not result.startswith("[EXCEPTION]") and result:
                 logging.error(f"[Agent] Assigned port {port} for {box_name} is in use by another process")
                 return f"[Agent] Assigned port {port} for {box_name} is in use by another process".encode()
     else:
+        # Assign new port for services requiring external ports
         available_ports = availablePort()
         if not available_ports:
             logging.error(f"[Agent] No available ports for {box_name}")
             return f"[Agent] No available ports for {box_name}".encode()
         port = str(available_ports[0])
 
+        # Update allocations with new port assignments
         docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
         services = extract_service_keys(docker_compose_path)
-        port_data = {f"{box_name}_{service}": ("expose" if "db" in service.lower() else port) for service in services}
+        port_data = {f"{box_name}_{service}": ("expose" if "db" in service else port) for service in services}
         allocations, port_file = load_port_allocations(write=True)
         allocations[box_name] = {"port": port_data}
         save_port_allocations(allocations, port_file)
 
+    # Replace PORT placeholder in docker-compose.yml
     docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
     with open(docker_compose_path, "r") as f:
         content = f.read()
@@ -328,6 +339,7 @@ def startBox(arg: str) -> bytes:
         output = run_command(f"tmux capture-pane -t {box_name} -p")
         logging.info(f"[Agent] Box {box_name} started at port {SHAREHOST}:{port}")
 
+        # If first launch, render and append installGuide.txt
         guide_output = ""
         if is_first_launch:
             guide_output = render_install_guide(box_dir, SHAREHOST, port)
@@ -786,19 +798,10 @@ def getPort(boxID: str) -> bytes:
 
 if __name__ == "__main__":
     f = open("agentConfig.json", "r")
-    config = json.load(f)
-    SECRET_PATH = config['API']
-    HOST = '0.0.0.0'  # Default to listening on all interfaces
-    PORT = int(config['listenPort'])
-    SHAREHOST = config['sharehost']
-    # Parse port ranges and standalone ports (e.g., "10000-10020;11200-11300;100")
-    ASSIGNABLE_PORTS = []
-    port_entries = config['ports'].split(';')
-    for entry in port_entries:
-        if '-' in entry:
-            start, end = map(int, entry.split('-'))
-            ASSIGNABLE_PORTS.extend(range(start, end + 1))
-        else:
-            ASSIGNABLE_PORTS.append(int(entry))
-
+    o = json.load(f)
+    SECRET_PATH = o['API']
+    ASSIGNABLE_PORTS= o['ports']
+    SHAREHOST = o['sharehost']
+    PORT = int(o['listenPort'])
     start_agent_listener_InjectionFix()
+    # print(getPort("1749474504_X11Pn6FHg5_filebrowser"))

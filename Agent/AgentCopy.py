@@ -10,12 +10,12 @@ import base64
 import struct
 import logging
 import fcntl
-from datetime import datetime
-import logging
-
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+HOST = '0.0.0.0'
+SHAREHOST = '192.168.32.133'
+PORT = 5000
 
 
 def load_port_allocations(write=False):
@@ -54,10 +54,12 @@ def save_port_allocations(allocations, port_file):
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 def availablePort() -> list:
-    """Return a list of available ports from agentConfig.json port ranges and standalone ports, excluding assigned and system-used ports."""
+    """Return a list of available ports from agentConfig.json, excluding assigned ports and system-used ports."""
     try:
-        # Load allowed ports from agentConfig.json (already loaded as ASSIGNABLE_PORTS)
-        allowed_ports = ASSIGNABLE_PORTS
+        # Load allowed ports from agentConfig.json
+        with open("agentConfig.json", "r") as f:
+            config = json.load(f)
+        allowed_ports = config["ports"]  # e.g., [10000, 10001, 10002, 10003]
 
         # Load current port allocations
         allocations = load_port_allocations()
@@ -160,31 +162,9 @@ def start_agent_listener_InjectionFix():
                 elif cmm[1] == "agent_stats":
                     print(f"[Agent] Valid command received: Box Overview")
                     try:
-                        conn.sendall(combinedOverview())
+                        conn.sendall(overviewAgent())
                     except Exception as e:
                         conn.sendall(str(e).encode())
-
-                elif cmm[1] == "box_backup":
-                    if len(cmm) < 3:
-                        print(f"[Agent] Invalid command format received")
-                        conn.sendall(b"Invalid Command format.")
-                    else:
-                        print(f"[Agent] Valid command received: Box Backup {cmm[2]}")
-                        try:
-                            conn.sendall(backupBox(cmm[2]).encode())
-                        except Exception as e:
-                            conn.sendall(str(e).encode())
-
-                elif cmm[1] == "get_port":
-                    if len(cmm) < 3:
-                        print(f"[Agent] Invalid command format received")
-                        conn.sendall(b"Invalid Command format.")
-                    else:
-                        print(f"[Agent] Valid command received: Get Port {cmm[2]}")
-                        try:
-                            conn.sendall(getPort(cmm[2]))
-                        except Exception as e:
-                            conn.sendall(str(e).encode())
 
                 else:
                     try:
@@ -275,6 +255,7 @@ def startBox(arg: str) -> bytes:
     box_dir = os.path.join(os.getcwd(), "Box", arg)
     box_name = box_dir.split("/")[-1]
 
+    # Check if box is already running
     try:
         status = json.loads(checkBoxStatus(box_name).decode())["status"]
         if status == "running":
@@ -288,32 +269,38 @@ def startBox(arg: str) -> bytes:
         logging.error(f"[Agent] Directory {box_dir} does not exist")
         return f"[Agent] Directory {box_dir} does not exist.".encode()
 
+    # Load port allocations to check if this is the first launch
     allocations = load_port_allocations()
-    is_first_launch = box_name not in allocations
+    is_first_launch = box_name not in allocations  # First launch if box_name isn't in allocations yet
 
+    # Check if box already has assigned ports
     if box_name in allocations:
         port_data = allocations[box_name]["port"]
         port = next((p for p in port_data.values() if p != "expose" and p.isdigit()), None)
         if port:
+            # Verify assigned port is still free on the system
             cmd = f"netstat -tuln | grep ':{port}'"
             result = run_command(cmd)
             if not result.startswith("[ERROR]") and not result.startswith("[EXCEPTION]") and result:
                 logging.error(f"[Agent] Assigned port {port} for {box_name} is in use by another process")
                 return f"[Agent] Assigned port {port} for {box_name} is in use by another process".encode()
     else:
+        # Assign new port for services requiring external ports
         available_ports = availablePort()
         if not available_ports:
             logging.error(f"[Agent] No available ports for {box_name}")
             return f"[Agent] No available ports for {box_name}".encode()
         port = str(available_ports[0])
 
+        # Update allocations with new port assignments
         docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
         services = extract_service_keys(docker_compose_path)
-        port_data = {f"{box_name}_{service}": ("expose" if "db" in service.lower() else port) for service in services}
+        port_data = {f"{box_name}_{service}": ("expose" if "db" in service else port) for service in services}
         allocations, port_file = load_port_allocations(write=True)
         allocations[box_name] = {"port": port_data}
         save_port_allocations(allocations, port_file)
 
+    # Replace PORT placeholder in docker-compose.yml
     docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
     with open(docker_compose_path, "r") as f:
         content = f.read()
@@ -328,6 +315,7 @@ def startBox(arg: str) -> bytes:
         output = run_command(f"tmux capture-pane -t {box_name} -p")
         logging.info(f"[Agent] Box {box_name} started at port {SHAREHOST}:{port}")
 
+        # If first launch, render and append installGuide.txt
         guide_output = ""
         if is_first_launch:
             guide_output = render_install_guide(box_dir, SHAREHOST, port)
@@ -481,7 +469,32 @@ def deleteBox(arg: str) -> bytes:
     except subprocess.CalledProcessError as e:
         logging.error(f"[Agent] Error deleting box directory {box_name}: {e.output}")
         return f"[Agent] Error deleting box directory {box_name}: {e.output}".encode()
-
+    # """Delete a box and its port assignments."""
+    # box_dir = os.path.join(os.getcwd(), "Box", arg)
+    # box_name = box_dir.split("/")[-1]
+    #
+    # if not os.path.isdir(box_dir):
+    #     logging.error(f"[Agent] Directory {box_dir} does not exist")
+    #     return f"[Agent] Directory {box_dir} does not exist.".encode()
+    #
+    # # Stop the box first
+    # status = json.loads(checkBoxStatus(box_name).decode())["status"]
+    # stopBox(arg)
+    #
+    # # Remove port allocations
+    # allocations, port_file = load_port_allocations(write=True)
+    # if box_name in allocations:
+    #     del allocations[box_name]
+    #     save_port_allocations(allocations, port_file)
+    #
+    # # Remove box directory
+    # try:
+    #     run_command(f"rm -rf {box_dir}")
+    #     logging.info(f"[Agent] Box {box_name} deleted successfully")
+    #     return f"[Agent] Box {box_name} deleted successfully".encode()
+    # except subprocess.CalledProcessError as e:
+    #     logging.error(f"[Agent] Error deleting box {box_name}: {e.output}")
+    #     return f"[Agent] Error deleting box {box_name}:\n{e.output}".encode()
 
 def boxList() -> bytes:
     DOCKER_REFERENCE_PATH = run_command("pwd") + "/Box"
@@ -520,108 +533,9 @@ def extract_service_keys(yaml_file):
         return list(services.keys())
 
 def overviewAgent():
-    """Retrieve Docker stats from a persistent tmux session in JSON format."""
-    stats_session = "docker-stats-jsonformat"
-    try:
-        # Check if tmux session exists
-        result = run_command(f"tmux ls | grep {stats_session}")
-        session_exists = not result.startswith("[ERROR]") and result.strip()
+    return run_command(f"docker stats --no-stream --format json").encode()
 
-        if not session_exists:
-            # Start new tmux session if it doesn't exist
-            run_command(f"tmux new-session -d -s {stats_session} -x 500 -y 100")
-            run_command(f"tmux send-keys -t {stats_session} 'docker stats --format json' C-m")
-            sleep(3)  # Wait for docker stats to initialize
-            logging.info(f"[Agent] Started new {stats_session} session for Docker stats")
 
-        # Capture output from tmux session
-        output = run_command(f"tmux capture-pane -t {stats_session} -p")
-        if output.startswith("[ERROR]") or output.startswith("[EXCEPTION]"):
-            logging.error(f"[Agent] Error capturing tmux pane for {stats_session}: {output}")
-            return f"[Agent] Error capturing Docker stats: {output}".encode()
-
-        # Process output to ensure valid JSON
-        try:
-            # Split output into lines and filter valid JSON lines
-            json_lines = [line for line in output.splitlines() if line.strip() and line.startswith("{")]
-            if not json_lines:
-                logging.warning(f"[Agent] No valid JSON output from {stats_session}")
-                return json.dumps({"error": "No valid stats available"}).encode()
-
-            # Combine valid JSON lines into a list
-            stats = [json.loads(line) for line in json_lines]
-            return json.dumps(stats).encode()
-        except json.JSONDecodeError as e:
-            logging.error(f"[Agent] Error parsing Docker stats JSON: {str(e)}")
-            return f"[Agent] Error parsing Docker stats JSON: {str(e)}".encode()
-    except Exception as e:
-        logging.error(f"[Agent] Error in overviewAgent: {str(e)}")
-        return f"[Agent] Error retrieving Docker stats: {str(e)}".encode()
-
-def miniOverview():
-    try:
-        # Get list of boxes from boxList
-        boxes = boxList().decode().split(" ")
-        if not boxes or boxes == ['']:
-            logging.info("[Agent] No boxes found")
-            return json.dumps({}).encode()
-
-        # Build status dictionary
-        status_dict = {}
-        for box_name in boxes:
-            if box_name.strip():  # Skip empty strings
-                try:
-                    status = json.loads(checkBoxStatus(box_name).decode())["status"]
-                    status_dict[box_name] = status
-                except Exception as e:
-                    logging.error(f"[Agent] Error checking status for {box_name}: {str(e)}")
-                    status_dict[box_name] = "stopped"  # Default to stopped on error
-
-        return json.dumps(status_dict).encode()
-    except Exception as e:
-        logging.error(f"[Agent] Error in miniOverview: {str(e)}")
-        return json.dumps({"error": f"Failed to generate overview: {str(e)}"}).encode()
-
-def combinedOverview():
-    """Generate a JSON object combining box status from miniOverview with detailed stats for running boxes."""
-    try:
-        # Get base status from miniOverview
-        status_dict = json.loads(miniOverview().decode())
-        if "error" in status_dict:
-            logging.error(f"[Agent] Error from miniOverview: {status_dict['error']}")
-            return json.dumps({"error": status_dict["error"]}).encode()
-
-        # Get stats for running boxes from overviewAgent
-        stats_output = overviewAgent()
-        if stats_output.startswith(b"[Agent] Error"):
-            logging.error(f"[Agent] Error from overviewAgent: {stats_output.decode()}")
-            return stats_output
-        stats = json.loads(stats_output.decode())
-
-        # Initialize result dictionary
-        result = {}
-
-        # Process each box
-        for box_id, status in status_dict.items():
-            if status == "stopped":
-                # For stopped boxes, only include status
-                result[box_id] = {"status": "stopped"}
-            else:
-                # For running boxes, include status and detailed stats
-                box_stats = {}
-                for stat in stats:
-                    # Match stats to box_id (container names start with box_id)
-                    if stat["Name"].startswith(box_id.lower()):
-                        box_stats[stat["Name"]] = stat
-                result[box_id] = {
-                    "status": status,
-                    "stats": box_stats if box_stats else {"error": "No stats available"}
-                }
-
-        return json.dumps(result).encode()
-    except Exception as e:
-        logging.error(f"[Agent] Error in combinedOverview: {str(e)}")
-        return json.dumps({"error": f"Failed to generate combined overview: {str(e)}"}).encode()
 
 def checkBoxStatus(box_id: str) -> bytes:
     """Check if a box is running or stopped using docker ps, returning JSON as bytes."""
@@ -657,95 +571,6 @@ def checkBoxStatus(box_id: str) -> bytes:
         logging.error(f"[Agent] Error checking box status for {box_id}: {str(e)}")
         return json.dumps({"boxID": box_id, "status": "stopped", "services": []}).encode()
 
-def restoreBox(box_id: str, path: str) -> bytes:
-    return
-
-def restoreBoxNew(path: str) -> bytes:
-    return
-
-def backupBox(box_id: str) -> bytes:
-    """Backup a box by archiving its Docker volumes and container images into tar.gz files in a dated backup directory."""
-    box_dir = os.path.join(os.getcwd(), "Box", box_id)
-    if not os.path.isdir(box_dir):
-        logging.error(f"[Agent] Directory {box_dir} does not exist")
-        return f"[Agent] Directory {box_dir} does not exist.".encode()
-
-    # Get list of Docker volumes and filter those starting with box_id.lower()
-    volume_list = run_command("docker volume ls --format '{{.Name}}'")
-    if volume_list.startswith("[ERROR]") or volume_list.startswith("[EXCEPTION]"):
-        logging.error(f"[Agent] Error listing Docker volumes: {volume_list}")
-        return f"[Agent] Error listing Docker volumes: {volume_list}".encode()
-
-    box_id_lower = box_id.lower()
-    volumes = [vol for vol in volume_list.splitlines() if vol.startswith(box_id_lower)]
-    if not volumes:
-        logging.error(f"[Agent] No volumes found for {box_id}")
-        return f"[Agent] No volumes found for {box_id}".encode()
-
-    # Get container images from docker-compose.yml
-    docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
-    try:
-        with open(docker_compose_path, "r") as f:
-            import yaml
-            compose = yaml.safe_load(f)
-        services = compose.get("services", {})
-        images = {service: config.get("image") for service, config in services.items() if config.get("image")}
-        if not images:
-            logging.error(f"[Agent] No images found in {docker_compose_path}")
-            return f"[Agent] No images found in {docker_compose_path}".encode()
-    except Exception as e:
-        logging.error(f"[Agent] Error reading docker-compose.yml for {box_id}: {str(e)}")
-        return f"[Agent] Error reading docker-compose.yml: {str(e)}".encode()
-
-    # Create Backup directory and dated subdirectory
-    backup_dir = os.path.join(box_dir, "Backup")
-    date_str = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-    dated_backup_dir = os.path.join(backup_dir, f"{box_id}_{date_str}_backup")
-    try:
-        os.makedirs(dated_backup_dir, exist_ok=True)
-    except Exception as e:
-        logging.error(f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}")
-        return f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}".encode()
-
-    # Backup each volume to a tar.gz file
-    tar_files = []
-    for volume in volumes:
-        tar_file = os.path.join(dated_backup_dir, f"{volume}.tar.gz")
-        cmd = (
-            f"docker run --rm "
-            f"-v {volume}:/data "
-            f"-v {dated_backup_dir}:/backup "
-            f"busybox tar czf /backup/{volume}.tar.gz -C /data ."
-        )
-        result = run_command(cmd)
-        if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
-            logging.error(f"[Agent] Error backing up volume {volume}: {result}")
-            return f"[Agent] Error backing up volume {volume}: {result}".encode()
-        logging.info(f"[Agent] Backed up volume {volume} to {tar_file}")
-        tar_files.append(f"{volume}.tar.gz")
-
-    # Backup each container image to a .tar file
-    for service, image in images.items():
-        tar_file = os.path.join(dated_backup_dir, f"{box_id}_{service}_image.tar")
-        cmd = f"docker save -o {tar_file} {image}"
-        result = run_command(cmd)
-        if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
-            logging.error(f"[Agent] Error backing up image {image} for {service}: {result}")
-            return f"[Agent] Error backing up image {image} for {service}: {result}".encode()
-        logging.info(f"[Agent] Backed up image {image} to {tar_file}")
-        tar_files.append(f"{box_id}_{service}_image.tar")
-
-    # Create a full backup archive containing all volume and image tar files
-    full_backup_file = os.path.join(dated_backup_dir, f"{box_id}_full_backup.tar.gz")
-    tar_cmd = f"tar -czvf {full_backup_file} -C {dated_backup_dir} {' '.join(tar_files)}"
-    result = run_command(tar_cmd)
-    if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
-        logging.error(f"[Agent] Error creating full backup archive for {box_id}: {result}")
-        return f"[Agent] Error creating full backup archive for {box_id}: {result}".encode()
-    logging.info(f"[Agent] Created full backup archive {full_backup_file}")
-
-    logging.info(f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}")
-    return f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}".encode()
 
 def stopAgentStats() -> bytes:
     """Stop the agent_stats tmux session."""
@@ -758,47 +583,10 @@ def stopAgentStats() -> bytes:
     except Exception as e:
         return f"[Agent] Error stopping stats session: {e}".encode()
 
-def listBackup(boxID: str) -> list:
-    return []
-
-def getBackupPath(backupID: str) -> str:
-    return
-
-def getPort(boxID: str) -> bytes:
-    """Retrieve the assigned port for a given boxID from port_allocations.json."""
-    try:
-        allocations = load_port_allocations()
-        if boxID not in allocations:
-            logging.error(f"[Agent] No port allocations found for {boxID}")
-            return json.dumps({"port": None, "error": f"No port allocations found for {boxID}"}).encode()
-
-        port_data = allocations[boxID]["port"]
-        port = next((p for p in port_data.values() if p != "expose" and p.isdigit()), None)
-        if not port:
-            logging.error(f"[Agent] No valid port assigned for {boxID}")
-            return json.dumps({"port": None, "error": f"No valid port assigned for {boxID}"}).encode()
-
-        logging.info(f"[Agent] Retrieved port {port} for {boxID}")
-        return json.dumps({"port": port}).encode()
-    except Exception as e:
-        logging.error(f"[Agent] Error retrieving port for {boxID}: {str(e)}")
-        return json.dumps({"port": None, "error": f"Error retrieving port: {str(e)}"}).encode()
 
 if __name__ == "__main__":
     f = open("agentConfig.json", "r")
-    config = json.load(f)
-    SECRET_PATH = config['API']
-    HOST = '0.0.0.0'  # Default to listening on all interfaces
-    PORT = int(config['listenPort'])
-    SHAREHOST = config['sharehost']
-    # Parse port ranges and standalone ports (e.g., "10000-10020;11200-11300;100")
-    ASSIGNABLE_PORTS = []
-    port_entries = config['ports'].split(';')
-    for entry in port_entries:
-        if '-' in entry:
-            start, end = map(int, entry.split('-'))
-            ASSIGNABLE_PORTS.extend(range(start, end + 1))
-        else:
-            ASSIGNABLE_PORTS.append(int(entry))
-
+    o = json.load(f)
+    SECRET_PATH = o['API']
+    ASSIGNABLE_PORTS= o['ports']
     start_agent_listener_InjectionFix()

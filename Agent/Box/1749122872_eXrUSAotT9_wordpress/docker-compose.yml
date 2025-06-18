@@ -27,7 +27,7 @@ services:
     networks:
     - wp-network
     ports:
-    - 10000:80
+    - 10002:80
     volumes:
     - wp_data:/var/www/html
 version: '3.8'
