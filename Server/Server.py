@@ -516,14 +516,14 @@ def AgentCreateAPI(api_key):
         return jsonify({"error": "Invalid API key."}), 403
 
     data = request.get_json()
-    required_fields = ["description", "host", "listenPort", "ports"]
+    required_fields = ["description", "host", "ports"]
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing {field} in JSON body"}), 400
 
     description = data["description"]
     host = data["host"]
-    listen_port = data["listenPort"]
+    listen_port = int(host.rsplit(":")[1]) # data["listenPort"]
     ports = data["ports"]
     sharehost = data.get("sharehost", "")
 
@@ -600,13 +600,39 @@ def AgentCreateAPI(api_key):
 
     # Generate download URL using server IP and port
     server_host = request.host
-    download_url = f"http://{server_host}/{api_key}/agents/agentDynamic/{archive_name}"
+    # download_url = f"http://{server_host}/{api_key}/agents/agentDynamic/{archive_name}"
+    download_url = f"{SHAREHOSTDEMO}/{api_key}/agents/agentDynamic/{archive_name}"
     load_creds()
-    return jsonify({
+    return jsonify(json.dumps({
         "agentID": agent_id,
         "downloadUrl": download_url,
         "message": "Agent created successfully"
-    }), 200
+    }))
+
+@app.route('/<api_key>/agent/modify', methods=['POST'])
+def AgentModifyAPI(api_key):
+    return
+
+@app.route('/<api_key>/agent/remove', methods=['POST'])
+def AgentRemoveAPI(api_key):
+    creds_data = load_creds()
+    if check_api(api_key, creds_data) != "admin":
+        return jsonify({"error": "Invalid API key."}), 403
+
+    data = request.get_json()
+    if not data or "agentID" not in data:
+        return jsonify({"error": "Missing agentID in JSON body"}), 400
+
+    agent_id = data["agentID"]
+    if agent_id not in creds_data["agents"]:
+        return jsonify({"error": "Invalid AgentID"}), 400
+
+    try:
+        del creds_data["agents"][agent_id]
+        save_creds(creds_data)
+        return jsonify({"message": f"Agent {agent_id} removed successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to remove agent {agent_id}: {str(e)}"}), 500
 
 @app.route('/<api_key>/agent/connectBox', methods=['POST'])
 def proxyConnectAPI(api_key):
@@ -897,5 +923,6 @@ def download_agent(api_key, archive_name):
 
 
 if __name__ == '__main__':
+    SHAREHOSTDEMO="https://a741-14-226-226-52.ngrok-free.app"
     app.run(host="0.0.0.0", port=5000)
     # print(check_agent_status(creds["agents"]["agent01"]["host"]))
