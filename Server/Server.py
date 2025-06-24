@@ -398,20 +398,127 @@ def boxBackupAPI(api_key):
             return jsonify({"error": "Missing agentID in JSON body"}), 400
         if not data or "boxID" not in data:
             return jsonify({"error": "Missing boxID in JSON body"}), 400
+        if not data or "backupType" not in data:
+            return jsonify({"error": "Missing backupType in JSON body"}), 400
         agentID = data["agentID"]
         if find(listAgent(), agentID) == -1:
             return jsonify("Invalid AgentID")
         boxID = data["boxID"]
         if find(boxList(agentID), boxID) == -1:
             return jsonify("Invalid BoxID")
-        return jsonify(boxBackup(agentID, boxID))
+        backupType=data["backupType"]
+        if backupType == "full":
+            return jsonify(boxBackupFull(agentID, boxID))
+        elif backupType == "data":
+            return jsonify(boxBackupData(agentID, boxID))
+        else:
+            return jsonify(f"Backup type {backupType} not found")
     return jsonify("Invalid API key.")
 
-def boxBackup(agentID, boxID):
+def boxBackupFull(agentID, boxID):
     creds_data = load_creds()
     secret = creds_data["agents"][agentID]["API"]
-    payload = f"{secret} box_backup {boxID}"
+    payload = f"{secret} box_backupFull {boxID}"
     return socketSend(creds_data["agents"][agentID]["host"], payload)
+
+def boxBackupData(agentID, boxID):
+    creds_data = load_creds()
+    secret = creds_data["agents"][agentID]["API"]
+    payload = f"{secret} box_backupData {boxID}"
+    return socketSend(creds_data["agents"][agentID]["host"], payload)
+
+@app.route('/<api_key>/agent/box/restore', methods=['POST'])
+def boxRestoreAPI(api_key):
+    creds_data = load_creds()
+    if check_api(api_key, creds_data) == "admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+        if not data or "backupType" not in data:
+            return jsonify({"error": "Missing backupType in JSON body"}), 400
+        if not data or "backupID" not in data:
+            return jsonify({"error": "Missing backupID in JSON body"}), 400
+        agentID = data["agentID"]
+        if find(listAgent(), agentID) == -1:
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if find(boxList(agentID), boxID) == -1:
+            return jsonify("Invalid BoxID")
+        backupID = data["backupID"]
+        if find(boxListBackup(agentID,boxID), backupID) == -1:
+            return jsonify("Invalid backupID")
+        backupType=data["backupType"]
+        if backupType == "full":
+            return jsonify(boxRestoreFull(agentID, boxID, backupID))
+        elif backupType == "data":
+            return jsonify(boxRestoreData(agentID, boxID, backupID))
+        else:
+            return jsonify(f"Backup type {backupType} not found")
+    return jsonify("Invalid API key.")
+
+def boxRestoreFull(agentID, boxID, backupID):
+    return socketSend("Didn't do anything")
+
+def boxRestoreData(agentID, boxID, backupID):
+    creds_data = load_creds()
+    secret = creds_data["agents"][agentID]["API"]
+    payload = f"{secret} box_restoreData {boxID} {backupID}"
+    return socketSend(creds_data["agents"][agentID]["host"], payload)
+
+@app.route('/<api_key>/agent/box/backup/remove', methods=['POST'])
+def boxBackupRemoveAPI(api_key):
+    creds_data = load_creds()
+    if check_api(api_key, creds_data) == "admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+        if not data or "backupID" not in data:
+            return jsonify({"error": "Missing backupID in JSON body"}), 400
+        agentID = data["agentID"]
+        if find(listAgent(), agentID) == -1:
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if find(boxList(agentID), boxID) == -1:
+            return jsonify("Invalid BoxID")
+        backupID = data["backupID"]
+        if find(boxListBackup(agentID,boxID), backupID) == -1:
+            return jsonify("Invalid backupID")
+        return jsonify(boxBackupRemove(agentID, boxID, backupID))
+    return jsonify("Invalid API key.")
+
+def boxBackupRemove(agentID, boxID, backupID):
+    creds_data = load_creds()
+    secret = creds_data["agents"][agentID]["API"]
+    payload = f"{secret} backup_remove {boxID} {backupID}"
+    return socketSend(creds_data["agents"][agentID]["host"], payload)
+
+@app.route('/<api_key>/agent/box/backup/list', methods=['POST'])
+def boxListBackupAPI(api_key):
+    creds_data = load_creds()
+    if check_api(api_key, creds_data) == "admin":
+        data = request.get_json()
+        if not data or "agentID" not in data:
+            return jsonify({"error": "Missing agentID in JSON body"}), 400
+        if not data or "boxID" not in data:
+            return jsonify({"error": "Missing boxID in JSON body"}), 400
+        agentID = data["agentID"]
+        if find(listAgent(), agentID) == -1:
+            return jsonify("Invalid AgentID")
+        boxID = data["boxID"]
+        if find(boxList(agentID), boxID) == -1:
+            return jsonify("Invalid BoxID")
+        return jsonify(boxListBackup(agentID, boxID))
+    return jsonify("Invalid API key.")
+
+def boxListBackup(agentID, boxID):
+    creds_data = load_creds()
+    secret = creds_data["agents"][agentID]["API"]
+    payload = f"{secret} list_backup {boxID}"
+    return socketSend(creds_data["agents"][agentID]["host"], payload).split(" ")
 
 @app.route('/<api_key>/agent/status', methods=['POST'])
 def agentStatusAPI(api_key):
@@ -634,139 +741,175 @@ def AgentRemoveAPI(api_key):
     except Exception as e:
         return jsonify({"error": f"Failed to remove agent {agent_id}: {str(e)}"}), 500
 
-@app.route('/<api_key>/agent/connectBox', methods=['POST'])
-def proxyConnectAPI(api_key):
-    creds_data = load_creds()
-    if check_api(api_key, creds_data) == "admin":
-        data = request.get_json()
-        if not data or "agentID" not in data or "boxID" not in data:
-            return jsonify({"error": "Missing agentID or boxID in JSON body"}), 400
-
-        agent_id = data["agentID"]
-        box_id = data["boxID"]
-
-        if agent_id not in creds_data["agents"]:
-            return jsonify("Invalid AgentID"), 400
-
-        overview = AgentOverview(agent_id)
-        if overview.startswith("Connection error:"):
-            return jsonify({"error": overview}), 500
-
-        try:
-            overview_data = json.loads(overview)
-            if box_id not in overview_data or overview_data[box_id]["status"] != "running":
-                return jsonify({"error": "Box not found or not running"}), 400
-        except json.JSONDecodeError:
-            return jsonify({"error": "Invalid response from agent"}), 500
-
-        secret = creds_data["agents"][agent_id]["API"]
-        payload = f"{secret} get_port {box_id}"
-        port_response = socketSend(creds_data["agents"][agent_id]["host"], payload)
-        if port_response.startswith("Connection error:"):
-            return jsonify({"error": port_response}), 500
-
-        try:
-            port_data = json.loads(port_response)
-            if "port" not in port_data or not port_data["port"]:
-                return jsonify({"error": "Failed to retrieve box port"}), 500
-            box_port = port_data["port"]
-        except json.JSONDecodeError:
-            return jsonify({"error": "Invalid port response from agent"}), 500
-
-        proxy_port = availableProxyPort()
-        if proxy_port is None:
-            return jsonify({"error": "No available proxy ports"}), 503
-
-        nginx_box_id = f"nginx_{agent_id}_{box_id}_{proxy_port}"
-        agent_ip = creds_data["agents"][agent_id]["host"].split(":")[0]
-        variables = {
-            "Export_port": proxy_port,
-            "agent_ip": agent_ip,
-            "agent_port": box_port
-        }
-        compose_template = open("DockerFilesReference/nginx/docker-compose.yml", "r").read()
-        compose = render(compose_template, variables)
-        nginx_conf_template = open("DockerFilesReference/nginx/nginx.conf", "r").read()
-        nginx_conf = render(nginx_conf_template, variables)
-
-        arg = {"boxID": nginx_box_id, "compose": compose, "nginx_conf": nginx_conf}
-        create_result = createNewBoxAgent(arg)
-        if create_result.startswith("[EXCEPTION]"):
-            return jsonify({"error": create_result}), 500
-
-        start_result = startBox(nginx_box_id)
-        if start_result.startswith("[Server] Error"):
-            return jsonify({"error": start_result}), 500
-
-        creds_data["proxy"]["allocation"][nginx_box_id] = {
-            "host": f"{agent_ip}:{box_port}",
-            "agentID": agent_id,
-            "boxID": box_id,
-            "status": "running"
-        }
-        save_creds(creds_data)
-
-        proxy_url = f"http://{request.host}/{api_key}/{agent_id}/{box_id}"
-        return jsonify({"proxy_url": proxy_url})
-    return jsonify("Invalid API key."), 403
-
-@app.route('/<api_key>/agent/disconnectBox', methods=['POST'])
-def proxyDisconnectAPI(api_key):
-    creds_data = load_creds()
-    if check_api(api_key, creds_data) == "admin":
-        data = request.get_json()
-        if not data or "agentID" not in data or "boxID" not in data:
-            return jsonify({"error": "Missing agentID or boxID in JSON body"}), 400
-
-        agent_id = data["agentID"]
-        box_id = data["boxID"]
-
-        if agent_id not in creds_data["agents"]:
-            return jsonify("Invalid AgentID"), 400
-
-        allocation = creds_data["proxy"].get("allocation", {})
-        for nginx_box_id, data in allocation.items():
-            if data["agentID"] == agent_id and data["boxID"] == box_id and data["status"] == "running":
-                stop_result = stopBox(nginx_box_id)
-                if stop_result.startswith("[Server] Error"):
-                    return jsonify({"error": stop_result}), 500
-
-                creds_data["proxy"]["allocation"][nginx_box_id]["status"] = "stopped"
-                save_creds(creds_data)
-                return jsonify({"message": f"Proxy for {box_id} stopped"})
-
-        return jsonify({"error": "No running proxy found for the specified agent and box"}), 404
-    return jsonify("Invalid API key."), 403
-
-@app.route('/<api_key>/<agentID>/<boxID>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/<api_key>/<agentID>/<boxID>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def proxy_request(api_key, agentID, boxID, path=None):
-    creds_data = load_creds()
-    if check_api(api_key, creds_data) != "admin":
-        return jsonify("Invalid API key."), 403
-
-    allocation = creds_data["proxy"].get("allocation", {})
-    for nginx_box_id, data in allocation.items():
-        if data["agentID"] == agentID and data["boxID"] == boxID and data["status"] == "running":
-            port = int(nginx_box_id.split("_")[-1])
-            url = f"http://localhost:{port}/{path}" if path else f"http://localhost:{port}/"
-            method = request.method
-            headers = {key: value for key, value in request.headers if key != 'Host'}
-            resp = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                data=request.get_data(),
-                cookies=request.cookies,
-                allow_redirects=False
-            )
-            excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-            headers = [(name, value) for (name, value) in resp.raw.headers.items() if
-                       name.lower() not in excluded_headers]
-            response = Response(resp.content, resp.status_code, headers)
-            return response
-
-    return jsonify({"error": "No running proxy found for the specified agent and box"}), 404
+# @app.route('/<api_key>/agent/connectBox', methods=['POST'])
+# def proxyConnectAPI(api_key):
+#     creds_data = load_creds()
+#     if check_api(api_key, creds_data) == "admin":
+#         data = request.get_json()
+#         if not data or "agentID" not in data or "boxID" not in data:
+#             return jsonify({"error": "Missing agentID or boxID in JSON body"}), 400
+#
+#         agent_id = data["agentID"]
+#         box_id = data["boxID"]
+#
+#         if agent_id not in creds_data["agents"]:
+#             return jsonify("Invalid AgentID"), 400
+#
+#         overview = AgentOverview(agent_id)
+#         if overview.startswith("Connection error:"):
+#             return jsonify({"error": overview}), 500
+#
+#         try:
+#             overview_data = json.loads(overview)
+#             if box_id not in overview_data or overview_data[box_id]["status"] != "running":
+#                 return jsonify({"error": "Box not found or not running"}), 400
+#         except json.JSONDecodeError:
+#             return jsonify({"error": "Invalid response from agent"}), 500
+#
+#         secret = creds_data["agents"][agent_id]["API"]
+#         payload = f"{secret} get_port {box_id}"
+#         port_response = socketSend(creds_data["agents"][agent_id]["host"], payload)
+#         if port_response.startswith("Connection error:"):
+#             return jsonify({"error": port_response}), 500
+#
+#         try:
+#             port_data = json.loads(port_response)
+#             if "port" not in port_data or not port_data["port"]:
+#                 return jsonify({"error": "Failed to retrieve box port"}), 500
+#             box_port = port_data["port"]
+#         except json.JSONDecodeError:
+#             return jsonify({"error": "Invalid port response from agent"}), 500
+#
+#         proxy_port = availableProxyPort()
+#         if proxy_port is None:
+#             return jsonify({"error": "No available proxy ports"}), 503
+#
+#         nginx_box_id = f"nginx_{agent_id}_{box_id}_{proxy_port}"
+#         agent_ip = creds_data["agents"][agent_id]["host"].split(":")[0]
+#         variables = {
+#             "Export_port": proxy_port,
+#             "agent_ip": agent_ip,
+#             "agent_port": box_port
+#         }
+#         compose_template = open("DockerFilesReference/nginx/docker-compose.yml", "r").read()
+#         compose = render(compose_template, variables)
+#         nginx_conf_template = open("DockerFilesReference/nginx/nginx.conf", "r").read()
+#         nginx_conf = render(nginx_conf_template, variables)
+#
+#         arg = {"boxID": nginx_box_id, "compose": compose, "nginx_conf": nginx_conf}
+#         create_result = createNewBoxAgent(arg)
+#         if create_result.startswith("[EXCEPTION]"):
+#             return jsonify({"error": create_result}), 500
+#
+#         start_result = startBox(nginx_box_id)
+#         if start_result.startswith("[Server] Error"):
+#             return jsonify({"error": start_result}), 500
+#
+#         creds_data["proxy"]["allocation"][nginx_box_id] = {
+#             "host": f"{agent_ip}:{box_port}",
+#             "agentID": agent_id,
+#             "boxID": box_id,
+#             "status": "running"
+#         }
+#         save_creds(creds_data)
+#
+#         proxy_url = f"http://{request.host}/{api_key}/{agent_id}/{box_id}"
+#         return jsonify({"proxy_url": proxy_url})
+#     return jsonify("Invalid API key."), 403
+#
+# @app.route('/<api_key>/agent/disconnectBox', methods=['POST'])
+# def proxyDisconnectAPI(api_key):
+#     creds_data = load_creds()
+#     if check_api(api_key, creds_data) == "admin":
+#         data = request.get_json()
+#         if not data or "agentID" not in data or "boxID" not in data:
+#             return jsonify({"error": "Missing agentID or boxID in JSON body"}), 400
+#
+#         agent_id = data["agentID"]
+#         box_id = data["boxID"]
+#
+#         if agent_id not in creds_data["agents"]:
+#             return jsonify("Invalid AgentID"), 400
+#
+#         allocation = creds_data["proxy"].get("allocation", {})
+#         for nginx_box_id, data in allocation.items():
+#             if data["agentID"] == agent_id and data["boxID"] == box_id and data["status"] == "running":
+#                 stop_result = stopBox(nginx_box_id)
+#                 if stop_result.startswith("[Server] Error"):
+#                     return jsonify({"error": stop_result}), 500
+#
+#                 creds_data["proxy"]["allocation"][nginx_box_id]["status"] = "stopped"
+#                 save_creds(creds_data)
+#                 return jsonify({"message": f"Proxy for {box_id} stopped"})
+#
+#         return jsonify({"error": "No running proxy found for the specified agent and box"}), 404
+#     return jsonify("Invalid API key."), 403
+#
+# @app.route('/<api_key>/<agentID>/<boxID>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+# @app.route('/<api_key>/<agentID>/<boxID>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+# def proxy_request(api_key, agentID, boxID, path=None):
+#     creds_data = load_creds()
+#     if check_api(api_key, creds_data) != "admin":
+#         return jsonify("Invalid API key."), 403
+#
+#     allocation = creds_data["proxy"].get("allocation", {})
+#     for nginx_box_id, data in allocation.items():
+#         if data["agentID"] == agentID and data["boxID"] == boxID and data["status"] == "running":
+#             port = int(nginx_box_id.split("_")[-1])
+#             url = f"http://localhost:{port}/{path}" if path else f"http://localhost:{port}/"
+#             method = request.method
+#             headers = {key: value for key, value in request.headers if key != 'Host'}
+#             resp = requests.request(
+#                 method=method,
+#                 url=url,
+#                 headers=headers,
+#                 data=request.get_data(),
+#                 cookies=request.cookies,
+#                 allow_redirects=False
+#             )
+#             excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+#             headers = [(name, value) for (name, value) in resp.raw.headers.items() if
+#                        name.lower() not in excluded_headers]
+#             response = Response(resp.content, resp.status_code, headers)
+#             return response
+#
+#     return jsonify({"error": "No running proxy found for the specified agent and box"}), 404
+#
+# def availableProxyPort():
+#     creds = load_creds()
+#     proxy_ports = creds["proxy"]["ports"]
+#     allocations = creds["proxy"].get("allocation", {})
+#
+#     # Find used ports from running allocations
+#     used_ports = set()
+#     for box_id, data in allocations.items():
+#         if data["status"] == "running":
+#             port = int(box_id.split("_")[-1])
+#             used_ports.add(port)
+#
+#     # Check system-used ports with netstat
+#     cmd = "netstat -tuln | awk '{print $4}' | grep -E ':[0-9]+' | cut -d':' -f2"
+#     result = run_command(cmd)
+#     if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#         logging.error(f"[Server] netstat failed: {result}")
+#         system_ports = set()
+#     else:
+#         system_ports = {int(port) for port in result.split('\n') if port.isdigit()}
+#
+#     # Find available ports
+#     available_ports = [port for port in proxy_ports if port not in used_ports and port not in system_ports]
+#
+#     if available_ports:
+#         return available_ports[0]
+#
+#     # Reuse port from stopped container
+#     for box_id, data in allocations.items():
+#         if data["status"] == "stopped":
+#             port = int(box_id.split("_")[-1])
+#             deleteBox(box_id)
+#             return port
+#
+#     return None
 
 @app.route('/<api_key>/ttt', methods=['GET'])
 def ttt(api_key):
@@ -777,42 +920,6 @@ def ttt(api_key):
 
 def ttt():
     return "FFFFFFFFFFFF"
-
-def availableProxyPort():
-    creds = load_creds()
-    proxy_ports = creds["proxy"]["ports"]
-    allocations = creds["proxy"].get("allocation", {})
-
-    # Find used ports from running allocations
-    used_ports = set()
-    for box_id, data in allocations.items():
-        if data["status"] == "running":
-            port = int(box_id.split("_")[-1])
-            used_ports.add(port)
-
-    # Check system-used ports with netstat
-    cmd = "netstat -tuln | awk '{print $4}' | grep -E ':[0-9]+' | cut -d':' -f2"
-    result = run_command(cmd)
-    if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
-        logging.error(f"[Server] netstat failed: {result}")
-        system_ports = set()
-    else:
-        system_ports = {int(port) for port in result.split('\n') if port.isdigit()}
-
-    # Find available ports
-    available_ports = [port for port in proxy_ports if port not in used_ports and port not in system_ports]
-
-    if available_ports:
-        return available_ports[0]
-
-    # Reuse port from stopped container
-    for box_id, data in allocations.items():
-        if data["status"] == "stopped":
-            port = int(box_id.split("_")[-1])
-            deleteBox(box_id)
-            return port
-
-    return None
 
 def deleteBox(box_id):
     box_dir = os.path.join(os.getcwd(), "connects", box_id)
@@ -923,6 +1030,6 @@ def download_agent(api_key, archive_name):
 
 
 if __name__ == '__main__':
-    SHAREHOSTDEMO="https://a741-14-226-226-52.ngrok-free.app"
+    SHAREHOSTDEMO="https://9368-14-226-226-52.ngrok-free.app"
     app.run(host="0.0.0.0", port=5000)
     # print(check_agent_status(creds["agents"]["agent01"]["host"]))

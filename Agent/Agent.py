@@ -12,11 +12,12 @@ import logging
 import fcntl
 from datetime import datetime
 import logging
+import shutil
+import tempfile
+import pytz
 
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [Agent] %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
 
 def load_port_allocations(write=False):
     """Load or save the port_allocations.json file with thread-safe access."""
@@ -164,14 +165,58 @@ def start_agent_listener_InjectionFix():
                     except Exception as e:
                         conn.sendall(str(e).encode())
 
-                elif cmm[1] == "box_backup":
+                elif cmm[1] == "box_backupFull":
                     if len(cmm) < 3:
                         print(f"[Agent] Invalid command format received")
                         conn.sendall(b"Invalid Command format.")
                     else:
                         print(f"[Agent] Valid command received: Box Backup {cmm[2]}")
                         try:
-                            conn.sendall(backupBox(cmm[2]).encode())
+                            conn.sendall(backupBoxFull(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif cmm[1] == "box_backupData":
+                    if len(cmm) < 3:
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: Box Backup {cmm[2]}")
+                        try:
+                            conn.sendall(backupBoxData(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif cmm[1] == "list_backup":
+                    if len(cmm) < 3:
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: List Backup {cmm[2]}")
+                        try:
+                            conn.sendall(listBackup(cmm[2]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif cmm[1] == "backup_remove":
+                    if len(cmm) < 4:
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: List Backup {cmm[2]}")
+                        try:
+                            conn.sendall(removeBackup(cmm[2],cmm[3]))
+                        except Exception as e:
+                            conn.sendall(str(e).encode())
+
+                elif cmm[1] == "box_restoreData":
+                    if len(cmm) < 4:
+                        print(f"[Agent] Invalid command format received")
+                        conn.sendall(b"Invalid Command format.")
+                    else:
+                        print(f"[Agent] Valid command received: Restore Backup {cmm[2]}")
+                        try:
+                            conn.sendall(restoreBoxData(cmm[2],cmm[3]))
                         except Exception as e:
                             conn.sendall(str(e).encode())
 
@@ -360,9 +405,9 @@ def stopBox(arg: str) -> bytes:
 
     try:
         run_command(f"tmux send-keys -t {box_name} C-c")
-        sleep(6)
+        sleep(3)
         run_command(f"tmux send-keys -t {box_name} 'docker-compose down' C-m")
-        sleep(6)
+        sleep(2)
         run_command(f"tmux kill-session -t {box_name}")
 
         # Revert Docker Compose file to use PORT placeholder
@@ -399,7 +444,6 @@ def revert_docker_compose_port(docker_compose_path: str) -> bool:
     except Exception as e:
         logging.error(f"[Agent] Error reverting Docker Compose ports in {docker_compose_path}: {str(e)}")
         return False
-
 
 def deleteBox(arg: str) -> bytes:
     """Delete a box, its port assignments, associated volumes, and prune unused networks."""
@@ -482,7 +526,6 @@ def deleteBox(arg: str) -> bytes:
         logging.error(f"[Agent] Error deleting box directory {box_name}: {e.output}")
         return f"[Agent] Error deleting box directory {box_name}: {e.output}".encode()
 
-
 def boxList() -> bytes:
     DOCKER_REFERENCE_PATH = run_command("pwd") + "/Box"
     services = [
@@ -501,7 +544,6 @@ def extract_service_keys(yaml_file):
         data = yaml.safe_load(file)
         services = data.get('services', {})
         return list(services.keys())
-
 
 def run_command(cmd: str) -> str:
     try:
@@ -657,14 +699,280 @@ def checkBoxStatus(box_id: str) -> bytes:
         logging.error(f"[Agent] Error checking box status for {box_id}: {str(e)}")
         return json.dumps({"boxID": box_id, "status": "stopped", "services": []}).encode()
 
-def restoreBox(box_id: str, path: str) -> bytes:
-    return
+def restoreBoxData(boxID: str, backupID: str) -> bytes:
+    """
+    Restore a box's data from a specified backup to its live container volumes.
 
-def restoreBoxNew(path: str) -> bytes:
-    return
+    :param boxID: The ID of the box (e.g., '1750683046_qyfdKHddPe_filebrowser').
+    :param backupID: The ID of the backup (e.g., '1750683046_qyfdKHddPe_filebrowser_06_23_2025_12_52_38_backupData').
+    :return: A byte-encoded message indicating success or failure.
+    """
+    # Validate that backupID corresponds to boxID
+    try:
+        if json.loads(miniOverview().decode())[boxID] == "running":
+            return f"{boxID} is currently running, unable to restore".encode()
+        if not backupID.startswith(boxID):
+            error_msg = f"[Agent] BackupID {backupID} does not match boxID {boxID}"
+            logging.error(error_msg)
+            return error_msg.encode()
 
-def backupBox(box_id: str) -> bytes:
-    """Backup a box by archiving its Docker volumes and container images into tar.gz files in a dated backup directory."""
+        # Construct paths
+        backup_dir = os.path.join("Box", boxID, "Backup", backupID)
+        backup_archive = os.path.join(backup_dir, f"{boxID}_data_backup.tar.gz")
+
+        # Check if backup archive exists
+        if not os.path.exists(backup_archive):
+            error_msg = f"[Agent] Backup archive {backup_archive} not found"
+            logging.error(error_msg)
+            return error_msg.encode()
+
+        # Use a temporary directory for extraction
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract the main backup archive
+            extract_cmd = f"tar -xzf {backup_archive} -C {temp_dir}"
+            result = run_command(extract_cmd)
+            if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+                error_msg = f"[Agent] Failed to extract {backup_archive}: {result}"
+                logging.error(error_msg)
+                return error_msg.encode()
+
+            # Find volume tar.gz files (excluding the main backup archive)
+            volume_files = [f for f in os.listdir(temp_dir) if f.endswith(".tar.gz")]
+
+            # Check if box exists
+            box_dir = os.path.join("Box", boxID)
+            if not os.path.exists(box_dir):
+                error_msg = f"[Agent] Box {boxID} does not exist"
+                logging.error(error_msg)
+                return error_msg.encode()
+
+            # Get existing volumes for the box
+            volume_list_cmd = "docker volume ls --format '{{.Name}}'"
+            volume_list = run_command(volume_list_cmd)
+            if volume_list.startswith("[ERROR]") or volume_list.startswith("[EXCEPTION]"):
+                error_msg = f"[Agent] Failed to list Docker volumes: {volume_list}"
+                logging.error(error_msg)
+                return error_msg.encode()
+
+            box_id_lower = boxID.lower()
+            existing_volumes = [vol for vol in volume_list.splitlines() if vol.startswith(box_id_lower)]
+
+            # Remove existing volumes
+            for vol in existing_volumes:
+                rm_cmd = f"docker volume rm {vol}"
+                result = run_command(rm_cmd)
+                if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+                    error_msg = f"[Agent] Failed to remove volume {vol}: {result}"
+                    logging.error(error_msg)
+                    return error_msg.encode()
+                logging.info(f"[Agent] Removed volume {vol}")
+
+            # Create and restore new volumes
+            for vol_file in volume_files:
+                vol_name = vol_file.replace(".tar.gz", "")
+                # Create the volume
+                create_cmd = f"docker volume create {vol_name}"
+                result = run_command(create_cmd)
+                if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+                    error_msg = f"[Agent] Failed to create volume {vol_name}: {result}"
+                    logging.error(error_msg)
+                    return error_msg.encode()
+                logging.info(f"[Agent] Created volume {vol_name}")
+
+                # Restore data into the volume
+                vol_tar_path = os.path.join(temp_dir, vol_file)
+                restore_cmd = (
+                    f"docker run --rm "
+                    f"-v {vol_name}:/data "
+                    f"-v {temp_dir}:/backup "
+                    f"busybox sh -c \"cd /data && tar xzf /backup/{vol_file}\""
+                )
+                result = run_command(restore_cmd)
+                if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+                    error_msg = f"[Agent] Failed to restore volume {vol_name}: {result}"
+                    logging.error(error_msg)
+                    return error_msg.encode()
+                logging.info(f"[Agent] Restored data to volume {vol_name}")
+
+            success_msg = f"[Agent] Successfully restored {boxID} from {backupID}"
+            logging.info(success_msg)
+            return success_msg.encode()
+    except Exception as e:
+        logging.error(f"[Agent] Error in Box restore: {str(e)}")
+        return f"Failed to run restore: {str(e)}".encode()
+
+
+def removeBackup(boxID: str, backupID: str) -> bytes:
+    try:
+        # Construct the path to the backup directory
+        backup_path = os.path.join("Box", boxID, "Backup", backupID)
+        print(backup_path)
+        # Check if the backup directory exists
+        if not os.path.exists(backup_path):
+            logging.error(f"Backup directory {backup_path} does not exist")
+            return b"Error: Backup directory does not exist"
+
+        # Use subprocess to run rm -r command
+        result = subprocess.run(["rm", "-r", backup_path], capture_output=True, text=True)
+
+        # Check for errors in the rm command
+        if result.returncode != 0:
+            logging.error(f"Failed to remove backup {backupID}: {result.stderr}")
+            return f"Error: Failed to remove backup: {result.stderr}".encode()
+
+        logging.info(f"Backup {backupID} removed successfully for box {boxID}")
+        return f"Sucessfully removed backup {backupID}".encode()
+
+    except Exception as e:
+        logging.error(f"Exception while removing backup {backupID} for box {boxID}: {str(e)}")
+        return f"Error: {str(e)}".encode()
+
+
+# def backupBoxFull(box_id: str) -> bytes:
+#     """Backup a box by archiving its Docker volumes and container images into tar.gz files in a dated backup directory."""
+#     box_dir = os.path.join(os.getcwd(), "Box", box_id)
+#     if not os.path.isdir(box_dir):
+#         logging.error(f"[Agent] Directory {box_dir} does not exist")
+#         return f"[Agent] Directory {box_dir} does not exist.".encode()
+#
+#     # Get list of Docker volumes and filter those starting with box_id.lower()
+#     volume_list = run_command("docker volume ls --format '{{.Name}}'")
+#     if volume_list.startswith("[ERROR]") or volume_list.startswith("[EXCEPTION]"):
+#         logging.error(f"[Agent] Error listing Docker volumes: {volume_list}")
+#         return f"[Agent] Error listing Docker volumes: {volume_list}".encode()
+#
+#     box_id_lower = box_id.lower()
+#     volumes = [vol for vol in volume_list.splitlines() if vol.startswith(box_id_lower)]
+#     if not volumes:
+#         logging.error(f"[Agent] No volumes found for {box_id}")
+#         return f"[Agent] No volumes found for {box_id}".encode()
+#
+#     # Get container images from docker-compose.yml
+#     docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
+#     try:
+#         with open(docker_compose_path, "r") as f:
+#             import yaml
+#             compose = yaml.safe_load(f)
+#         services = compose.get("services", {})
+#         images = {service: config.get("image") for service, config in services.items() if config.get("image")}
+#         if not images:
+#             logging.error(f"[Agent] No images found in {docker_compose_path}")
+#             return f"[Agent] No images found in {docker_compose_path}".encode()
+#     except Exception as e:
+#         logging.error(f"[Agent] Error reading docker-compose.yml for {box_id}: {str(e)}")
+#         return f"[Agent] Error reading docker-compose.yml: {str(e)}".encode()
+#
+#     # Create Backup directory and dated subdirectory
+#     backup_dir = os.path.join(box_dir, "Backup")
+#     date_str = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+#     dated_backup_dir = os.path.join(backup_dir, f"{box_id}_{date_str}_backup")
+#     try:
+#         os.makedirs(dated_backup_dir, exist_ok=True)
+#     except Exception as e:
+#         logging.error(f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}")
+#         return f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}".encode()
+#
+#     # Backup each volume to a tar.gz file
+#     tar_files = []
+#     for volume in volumes:
+#         tar_file = os.path.join(dated_backup_dir, f"{volume}.tar.gz")
+#         cmd = (
+#             f"docker run --rm "
+#             f"-v {volume}:/data "
+#             f"-v {dated_backup_dir}:/backup "
+#             f"busybox tar czf /backup/{volume}.tar.gz -C /data ."
+#         )
+#         result = run_command(cmd)
+#         if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#             logging.error(f"[Agent] Error backing up volume {volume}: {result}")
+#             return f"[Agent] Error backing up volume {volume}: {result}".encode()
+#         logging.info(f"[Agent] Backed up volume {volume} to {tar_file}")
+#         tar_files.append(f"{volume}.tar.gz")
+#
+#     # Backup each container image to a .tar file
+#     for service, image in images.items():
+#         tar_file = os.path.join(dated_backup_dir, f"{box_id}_{service}_image.tar")
+#         cmd = f"docker save -o {tar_file} {image}"
+#         result = run_command(cmd)
+#         if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#             logging.error(f"[Agent] Error backing up image {image} for {service}: {result}")
+#             return f"[Agent] Error backing up image {image} for {service}: {result}".encode()
+#         logging.info(f"[Agent] Backed up image {image} to {tar_file}")
+#         tar_files.append(f"{box_id}_{service}_image.tar")
+#
+#     # Create a full backup archive containing all volume and image tar files
+#     full_backup_file = os.path.join(dated_backup_dir, f"{box_id}_full_backup.tar.gz")
+#     tar_cmd = f"tar -czvf {full_backup_file} -C {dated_backup_dir} {' '.join(tar_files)}"
+#     result = run_command(tar_cmd)
+#     if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#         logging.error(f"[Agent] Error creating full backup archive for {box_id}: {result}")
+#         return f"[Agent] Error creating full backup archive for {box_id}: {result}".encode()
+#     logging.info(f"[Agent] Created full backup archive {full_backup_file}")
+#
+#     logging.info(f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}")
+#     return f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}".encode()
+#
+# def backupBoxData(box_id: str) -> bytes:
+#     """Backup only the Docker volumes for a given box into tar.gz files in a dated backup directory."""
+#     box_dir = os.path.join(os.getcwd(), "Box", box_id)
+#     if not os.path.isdir(box_dir):
+#         logging.error(f"[Agent] Directory {box_dir} does not exist")
+#         return f"[Agent] Directory {box_dir} does not exist.".encode()
+#
+#     # Get list of Docker volumes and filter those starting with box_id.lower()
+#     volume_list = run_command("docker volume ls --format '{{.Name}}'")
+#     if volume_list.startswith("[ERROR]") or volume_list.startswith("[EXCEPTION]"):
+#         logging.error(f"[Agent] Error listing Docker volumes: {volume_list}")
+#         return f"[Agent] Error listing Docker volumes: {volume_list}".encode()
+#
+#     box_id_lower = box_id.lower()
+#     volumes = [vol for vol in volume_list.splitlines() if vol.startswith(box_id_lower)]
+#     if not volumes:
+#         logging.error(f"[Agent] No volumes found for {box_id}")
+#         return f"[Agent] No volumes found for {box_id}".encode()
+#
+#     # Create Backup directory and dated subdirectory
+#     backup_dir = os.path.join(box_dir, "Backup")
+#     date_str = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+#     dated_backup_dir = os.path.join(backup_dir, f"{box_id}_{date_str}_backupData")
+#     try:
+#         os.makedirs(dated_backup_dir, exist_ok=True)
+#     except Exception as e:
+#         logging.error(f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}")
+#         return f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}".encode()
+#
+#     # Backup each volume to a tar.gz file
+#     tar_files = []
+#     for volume in volumes:
+#         tar_file = os.path.join(dated_backup_dir, f"{volume}.tar.gz")
+#         cmd = (
+#             f"docker run --rm "
+#             f"-v {volume}:/data "
+#             f"-v {dated_backup_dir}:/backup "
+#             f"busybox tar czf /backup/{volume}.tar.gz -C /data ."
+#         )
+#         result = run_command(cmd)
+#         if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#             logging.error(f"[Agent] Error backing up volume {volume}: {result}")
+#             return f"[Agent] Error backing up volume {volume}: {result}".encode()
+#         logging.info(f"[Agent] Backed up volume {volume} to {tar_file}")
+#         tar_files.append(f"{volume}.tar.gz")
+#
+#     # Create a full backup archive containing all volume tar.gz files
+#     full_backup_file = os.path.join(dated_backup_dir, f"{box_id}_data_backup.tar.gz")
+#     tar_cmd = f"tar -czvf {full_backup_file} -C {dated_backup_dir} {' '.join(tar_files)}"
+#     result = run_command(tar_cmd)
+#     if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+#         logging.error(f"[Agent] Error creating full data backup archive for {box_id}: {result}")
+#         return f"[Agent] Error creating full data backup archive for {box_id}: {result}".encode()
+#     logging.info(f"[Agent] Created full data backup archive {full_backup_file}")
+#     backupID = dated_backup_dir.split("/")[-1]
+#
+#     logging.info(f"[Agent] Box {box_id} data backed up successfully to {backupID}")
+#     return f"[Agent] Box {box_id} data backed up successfully to {backupID}".encode()
+
+def backupBoxFull(box_id: str) -> bytes:
+    """Backup a box by archiving its Docker volumes, container images, and docker-compose.yml into tar.gz files in a dated backup directory."""
     box_dir = os.path.join(os.getcwd(), "Box", box_id)
     if not os.path.isdir(box_dir):
         logging.error(f"[Agent] Directory {box_dir} does not exist")
@@ -699,13 +1007,21 @@ def backupBox(box_id: str) -> bytes:
 
     # Create Backup directory and dated subdirectory
     backup_dir = os.path.join(box_dir, "Backup")
-    date_str = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+    date_str = datetime.now(timezone).strftime("%m_%d_%Y_%H_%M_%S")
     dated_backup_dir = os.path.join(backup_dir, f"{box_id}_{date_str}_backup")
     try:
         os.makedirs(dated_backup_dir, exist_ok=True)
     except Exception as e:
         logging.error(f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}")
         return f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}".encode()
+
+    # Copy docker-compose.yml to the dated backup directory
+    try:
+        shutil.copy(docker_compose_path, os.path.join(dated_backup_dir, "docker-compose.yml"))
+        logging.info(f"[Agent] Copied docker-compose.yml to {dated_backup_dir}")
+    except Exception as e:
+        logging.error(f"[Agent] Error copying docker-compose.yml to {dated_backup_dir}: {str(e)}")
+        return f"[Agent] Error copying docker-compose.yml: {str(e)}".encode()
 
     # Backup each volume to a tar.gz file
     tar_files = []
@@ -735,7 +1051,10 @@ def backupBox(box_id: str) -> bytes:
         logging.info(f"[Agent] Backed up image {image} to {tar_file}")
         tar_files.append(f"{box_id}_{service}_image.tar")
 
-    # Create a full backup archive containing all volume and image tar files
+    # Add docker-compose.yml to the tar files list
+    tar_files.append("docker-compose.yml")
+
+    # Create a full backup archive containing all volume, image tar files, and docker-compose.yml
     full_backup_file = os.path.join(dated_backup_dir, f"{box_id}_full_backup.tar.gz")
     tar_cmd = f"tar -czvf {full_backup_file} -C {dated_backup_dir} {' '.join(tar_files)}"
     result = run_command(tar_cmd)
@@ -743,9 +1062,79 @@ def backupBox(box_id: str) -> bytes:
         logging.error(f"[Agent] Error creating full backup archive for {box_id}: {result}")
         return f"[Agent] Error creating full backup archive for {box_id}: {result}".encode()
     logging.info(f"[Agent] Created full backup archive {full_backup_file}")
-
+    backupID = dated_backup_dir.split("/")[-1]
     logging.info(f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}")
-    return f"[Agent] Box {box_id} backed up successfully to {dated_backup_dir}".encode()
+    return f"[Agent] Box {box_id} backed up successfully to {backupID}".encode()
+
+def backupBoxData(box_id: str) -> bytes:
+    """Backup only the Docker volumes and docker-compose.yml for a given box into tar.gz files in a dated backup directory."""
+    box_dir = os.path.join(os.getcwd(), "Box", box_id)
+    if not os.path.isdir(box_dir):
+        logging.error(f"[Agent] Directory {box_dir} does not exist")
+        return f"[Agent] Directory {box_dir} does not exist.".encode()
+
+    # Get list of Docker volumes and filter those starting with box_id.lower()
+    volume_list = run_command("docker volume ls --format '{{.Name}}'")
+    if volume_list.startswith("[ERROR]") or volume_list.startswith("[EXCEPTION]"):
+        logging.error(f"[Agent] Error listing Docker volumes: {volume_list}")
+        return f"[Agent] Error listing Docker volumes: {volume_list}".encode()
+
+    box_id_lower = box_id.lower()
+    volumes = [vol for vol in volume_list.splitlines() if vol.startswith(box_id_lower)]
+    if not volumes:
+        logging.error(f"[Agent] No volumes found for {box_id}")
+        return f"[Agent] No volumes found for {box_id}".encode()
+
+    # Create Backup directory and dated subdirectory
+    backup_dir = os.path.join(box_dir, "Backup")
+    date_str = datetime.now(timezone).strftime("%m_%d_%Y_%H_%M_%S")
+    dated_backup_dir = os.path.join(backup_dir, f"{box_id}_{date_str}_backupData")
+    try:
+        os.makedirs(dated_backup_dir, exist_ok=True)
+    except Exception as e:
+        logging.error(f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}")
+        return f"[Agent] Error creating backup directory {dated_backup_dir}: {str(e)}".encode()
+
+    # Copy docker-compose.yml to the dated backup directory
+    docker_compose_path = os.path.join(box_dir, "docker-compose.yml")
+    try:
+        shutil.copy(docker_compose_path, os.path.join(dated_backup_dir, "docker-compose.yml"))
+        logging.info(f"[Agent] Copied docker-compose.yml to {dated_backup_dir}")
+    except Exception as e:
+        logging.error(f"[Agent] Error copying docker-compose.yml to {dated_backup_dir}: {str(e)}")
+        return f"[Agent] Error copying docker-compose.yml: {str(e)}".encode()
+
+    # Backup each volume to a tar.gz file
+    tar_files = []
+    for volume in volumes:
+        tar_file = os.path.join(dated_backup_dir, f"{volume}.tar.gz")
+        cmd = (
+            f"docker run --rm "
+            f"-v {volume}:/data "
+            f"-v {dated_backup_dir}:/backup "
+            f"busybox tar czf /backup/{volume}.tar.gz -C /data ."
+        )
+        result = run_command(cmd)
+        if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+            logging.error(f"[Agent] Error backing up volume {volume}: {result}")
+            return f"[Agent] Error backing up volume {volume}: {result}".encode()
+        logging.info(f"[Agent] Backed up volume {volume} to {tar_file}")
+        tar_files.append(f"{volume}.tar.gz")
+
+    # Add docker-compose.yml to the tar files list
+    tar_files.append("docker-compose.yml")
+
+    # Create a full backup archive containing all volume tar.gz files and docker-compose.yml
+    full_backup_file = os.path.join(dated_backup_dir, f"{box_id}_data_backup.tar.gz")
+    tar_cmd = f"tar -czvf {full_backup_file} -C {dated_backup_dir} {' '.join(tar_files)}"
+    result = run_command(tar_cmd)
+    if result.startswith("[ERROR]") or result.startswith("[EXCEPTION]"):
+        logging.error(f"[Agent] Error creating full data backup archive for {box_id}: {result}")
+        return f"[Agent] Error creating full data backup archive for {box_id}: {result}".encode()
+    logging.info(f"[Agent] Created full data backup archive {full_backup_file}")
+    backupID = dated_backup_dir.split("/")[-1]
+    logging.info(f"[Agent] Box {box_id} data backed up successfully to {dated_backup_dir}")
+    return f"[Agent] Box {box_id} data backed up successfully to {backupID}".encode()
 
 def stopAgentStats() -> bytes:
     """Stop the agent_stats tmux session."""
@@ -758,8 +1147,15 @@ def stopAgentStats() -> bytes:
     except Exception as e:
         return f"[Agent] Error stopping stats session: {e}".encode()
 
-def listBackup(boxID: str) -> list:
-    return []
+def listBackup(boxID: str) -> bytes:
+    DOCKER_REFERENCE_PATH = run_command("pwd") + f"/Box/{boxID}/Backup"
+    services = [
+        name for name in os.listdir(DOCKER_REFERENCE_PATH)
+        if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+    ]
+    joined = ' '.join(services)
+    b = joined.encode()
+    return b
 
 def getBackupPath(backupID: str) -> str:
     return
@@ -800,5 +1196,5 @@ if __name__ == "__main__":
             ASSIGNABLE_PORTS.extend(range(start, end + 1))
         else:
             ASSIGNABLE_PORTS.append(int(entry))
-
+    timezone = pytz.timezone(config['timezone'])
     start_agent_listener_InjectionFix()
