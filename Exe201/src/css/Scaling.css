@@ -28,9 +28,9 @@
 }
 
 img {
-  width: 100%; /* hoặc kích thước mong muốn */
+  width: 100%;
   height: auto;
-  object-fit: contain; /* hoặc cover, tùy theo mục đích */
+  object-fit: contain;
 }
 
 .service-icon {

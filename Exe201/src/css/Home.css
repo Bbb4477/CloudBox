@@ -1,63 +1,262 @@
-.home_page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+:root {
+  --text-primary: #1f2937;
+  --border-primary: #d1d5db;
+  --success-green: #10b981;
+  --error-red: #ef4444;
+  --switch-running: #10b981;
+  --switch-stopped: #ef4444;
+  --switch-disabled: #9ca3af;
+  --switch-thumb: #ffffff;
 }
 
 .home_content {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+
+  min-height: 100vh;
+  width: 100%;
+  background-color: azure;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.send {
+  position: relative;
+  top: 16px;
+  padding: 10px 20px;
+  width: 200px;
+  display: flex;
+  justify-content: center;
+  background-color: var(--success-green);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.send:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.send:disabled {
+  background-color: var(--switch-disabled);
+  cursor: not-allowed;
+}
+
+.container_list {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.send:hover {
-  color: blue;
-  background-color: azure;
-  cursor: pointer;
-}
-
-.container-block {
-  border: 2px solid black; /* Rectangular border for container */
-  margin: 10px;
-  width: 600px;
-}
-
-.service-block {
-  border: 1px solid gray; /* Square border for service */
-  margin: 5px;
-  display: flex;
-  align-items: center;
-  width: 100px;
-  height: 200px;
-  cursor: pointer;
-}
-
-.service-block:hover {
-  background-color: lightgray;
-}
-
-.service-icon {
-  font-size: 20px;
-  margin-right: 10px;
-}
-
-.installation {
-  margin-right: 10px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 90px;
-  width: 90px;
-  padding: 5px 10px;
-  font-size: 20px;
-  cursor: pointer;
-  margin-top: 180px;
-}
-
-.installation:hover {
-  background-color: lightgreen;
+  width: 100%;
 }
 
 .container_box {
+  width: 100%;
+  max-width: 900px;
+}
+
+.container-block {
+  border: 3px solid var(--border-primary);
+  padding: 13px;
+  border-radius: 6px;
+  margin: 10px 0;
+  width: 100%;
+  max-width: 900px;
+  box-sizing: border-box;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+}
+
+.container-block p {
+  margin: 4px 0;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 80px;
+  height: 28px;
+  background-color: var(--switch-stopped);
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.toggle-switch.running {
+  background-color: var(--switch-running);
+}
+
+.toggle-switch.disabled {
+  background-color: var(--switch-disabled);
+  cursor: not-allowed;
+}
+
+.toggle-switch .thumb {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: var(--switch-thumb);
+  border-radius: 50%;
+  transition: transform 0.2s ease-in-out;
+}
+
+.toggle-switch.stopped .thumb {
+  transform: translateX(0);
+}
+
+.toggle-switch.running .thumb {
+  transform: translateX(52px);
+}
+
+.toggle-switch span {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.toggle-switch.stopped span {
+  left: 8px;
+}
+
+.toggle-switch.running span {
+  right: 8px;
+}
+
+.toggle-switch:focus {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.config-container {
+  position: relative;
+}
+
+.config-button {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #e5e7eb;
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-button:hover,
+.config-button:focus {
+  background-color: #d1d5db;
+}
+
+.config-button:focus {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.config-menu {
+  position: absolute;
+  top: 45px;
+  right: 0;
+  width: 96px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+}
+
+.delete-option {
+  padding: 5px 10px;
+  border: 1px solid black;
+  background-color: #ffffff;
+  color: var(--error-red);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  text-align: left;
+}
+
+.delete-option:hover,
+.delete-option:focus {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.delete-option:focus {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.success-message {
+  color: var(--success-green);
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  font-size: 14px;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.error {
+  color: var(--error-red);
+  background-color: rgba(239, 68, 68, 0.1);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.service_name {
+  font-size: large;
+  text-transform: capitalize;
+  font-weight: bold;
+}
+
+.backup-option {
+  background-color: #ffffff; /* Green for backup */
+  color: var(--error-red);
+  border: 1px solid black;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.backup-option:hover {
+  background-color: rgba(239, 68, 68, 0.1);
 }

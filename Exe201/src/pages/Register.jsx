@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
+import logo from "../assets/logov1.webp";
 import { handleregister } from "../Context/Auth"; // Import handleregister
 import "../css/Register.css";
 
@@ -33,6 +34,7 @@ const Register = () => {
 
   return (
     <div className="regi_page">
+      <img src={logo} alt="..." className="regi_logo" />
       <h2>Create Account</h2>
       <form className="regi_form" onSubmit={onSubmit}>
         <input

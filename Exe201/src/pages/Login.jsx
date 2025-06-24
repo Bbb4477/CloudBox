@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import logo from "../assets/logov1.webp";
 import { handlelogin } from "../Context/Auth";
 import "../css/Login.css";
 
@@ -22,6 +23,7 @@ const Login = () => {
 
   return (
     <div className="login_page">
+      <img src={logo} alt="..." className="login_logo" />
       <h2>Welcome to CloudBox</h2>
       <form className="login_form" onSubmit={onSubmit}>
         {" "}
@@ -50,7 +52,7 @@ const Login = () => {
         {error && <p className="error">{error}</p>}
         <div className="regis_n_log_btn">
           <Link to="/register" className="regis_button">
-            Register
+            Don't have an account?
           </Link>
           <button className="login_button" type="submit">
             Log in

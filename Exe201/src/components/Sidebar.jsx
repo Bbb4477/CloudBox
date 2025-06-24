@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import logo from "../assets/logo.png";
+import logo from "../assets/logov1.webp";
 import "../css/Sidebar.css";
+import LogoutModal from "./LogoutModal";
 
-const Sidebar = () => {
+const Sidebar = ({ isExpanded, setIsExpanded }) => {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const email = sessionStorage.getItem("userEmail");
@@ -14,41 +16,60 @@ const Sidebar = () => {
     }
   }, []);
 
-  const handleLogout = () => {
+  const toggleSidebar = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleLogoutClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const confirmLogout = () => {
     sessionStorage.removeItem("userEmail");
     setUserEmail(null);
     navigate("/");
+    setIsModalOpen(false);
+  };
+
+  const cancelLogout = () => {
+    setIsModalOpen(false);
   };
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isExpanded ? "expanded" : "collapsed"}`}>
+      <button className="toggle-button" onClick={toggleSidebar}>
+        {isExpanded ? "☰" : "☰"}
+      </button>
+
+      <div className="logo-container">
+        <span className="logo">
+          <img src={logo} alt="Cloudbox Logo" className="sidebar-logo" />
+        </span>
+      </div>
+
       <ul>
-        <div>
-          <li className="sidebar_logo">
-            <NavLink to="/home">
-              <img src={logo} alt="Logo" />
-            </NavLink>
-          </li>
-          <li>
-            <span className="user-icon">👤</span>
-            <span className="user-email">{userEmail}</span>
-          </li>
-          <li>
-            <NavLink to="/dashboard">Dashboard</NavLink>
-          </li>
-          <li>
-            <NavLink to="/scaling">Scaling</NavLink>
-          </li>
-          <li>
-            <NavLink to="/orchestrate">Orchestrate</NavLink>
-          </li>
-        </div>
-        <div className="lgout">
-          <li>
-            <button onClick={handleLogout}>Logout</button>
-          </li>
-        </div>
+        <li className="user-info">
+          <span className="icon">👤</span>
+          <span className="text">{userEmail}</span>
+        </li>
+        <li>
+          <NavLink to="/home">
+            <span className="icon">🏠</span>
+            <span className="text">Dashboard</span>
+          </NavLink>
+        </li>
+        <li className="logout">
+          <button onClick={handleLogoutClick}>
+            <span className="icon">🚪</span>
+            <span className="text">Logout</span>
+          </button>
+        </li>
       </ul>
+      <LogoutModal
+        isOpen={isModalOpen}
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+      />
     </div>
   );
 };
