@@ -1,4 +1,7 @@
 {
   "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL",
-  "ports": [10000,10001,10002,10003,10004,10005,10006,10007,10008,10009,10010,10011]
+  "ports": "10000-10020;11200-11300;4000",
+  "listenPort": "5000",
+  "sharehost": "192.168.32.132",
+  "timezone": "Asia/Ho_Chi_Minh"
 }
