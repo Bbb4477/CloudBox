@@ -43,9 +43,9 @@ const BackupModal = ({ isOpen, onClose, agentId, containerId }) => {
 
       const parsedBackups = backups.map((backup) => {
         const parts = backup.name.split("_");
-        let serviceName = "unknown";
-        let datePart = "00/00/0000";
-        let timePart = "00:00:00";
+        let serviceName = "";
+        let datePart = "";
+        let timePart = "";
 
         if (parts.length >= 5) {
           serviceName = parts[2];
@@ -190,36 +190,43 @@ const BackupModal = ({ isOpen, onClose, agentId, containerId }) => {
         {loading && <Loading />}
         {error && <p className="error">{error}</p>}
         {successMessage && <p className="success-message">{successMessage}</p>}
-        {!loading && !error && backupList.length === 0 && (
-          <p>No backups available</p>
-        )}
-        {!loading && !error && backupList.length > 0 && (
-          <ul className="backup-list">
-            {backupList.map((backup, index) => (
-              <li key={backup.id} className="backup-item">
-                <span className="backup-service">{backup.service}</span>
-                <span className="backup-date">{backup.date}</span>
-                <span className="backup-time">{backup.time}</span>
-                <div className="backup-actions">
-                  <button
-                    className="backup-btn delete-btn"
-                    onClick={() => handleDeleteBackup(index)}
-                    disabled={loading || !backupList.length}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    className="backup-btn restore-btn"
-                    onClick={() => handleUserRestore(index)} // Sử dụng tên mới
-                    disabled={loading || !backupList.length}
-                  >
-                    Restore
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+
+        {!loading &&
+          !error &&
+          backupList.length === 1 &&
+          backupList[0].name === "none" && <p>No backups available</p>}
+
+        {!loading &&
+          !error &&
+          backupList.length > 0 &&
+          backupList[0].name != "none" && (
+            <ul className="backup-list">
+              {backupList.map((backup, index) => (
+                <li key={backup.id} className="backup-item">
+                  <span className="backup-service">{backup.service}</span>
+                  <span className="backup-date">{backup.date}</span>
+                  <span className="backup-time">{backup.time}</span>
+                  <div className="backup-actions">
+                    <button
+                      className="backup-btn delete-btn"
+                      onClick={() => handleDeleteBackup(index)}
+                      disabled={loading || !backupList.length}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      className="backup-btn restore-btn"
+                      onClick={() => handleUserRestore(index)} // Sử dụng tên mới
+                      disabled={loading || !backupList.length}
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
         <button className="modal-close-btn" onClick={onClose}>
           Close
         </button>

@@ -76,13 +76,13 @@ img {
 
 .service-name {
   margin: 0;
-  font-size: 14px; /* Smaller font to fit 100x100px block */
-  color: #333; /* Match sidebar text color */
+  font-size: 14px;
+  color: #333;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Ellipsis for long names */
-  max-width: 100%; /* Ensure text stays within block */
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .install-btn {

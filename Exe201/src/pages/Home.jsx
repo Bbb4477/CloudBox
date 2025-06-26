@@ -85,7 +85,7 @@ const Home = () => {
       );
       setData(updatedData);
 
-      setTimeout(() => setSuccessMessage(""), 5000);
+      setTimeout(() => setSuccessMessage(""), 600000);
     } catch (err) {
       setLoading(false);
       setError("Error toggling service status");
@@ -116,7 +116,7 @@ const Home = () => {
       );
       setData(updatedData);
 
-      setTimeout(() => setSuccessMessage(""), 5000);
+      setTimeout(() => setSuccessMessage(""), 600000);
     } catch (err) {
       setLoading(false);
       setError("Error deleting service");

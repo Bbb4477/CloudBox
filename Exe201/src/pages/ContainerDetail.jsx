@@ -32,8 +32,8 @@ const ContainerDetail = () => {
       }
     };
 
-    fetchContainerDetails(); // Initial fetch
-    const intervalId = setInterval(fetchContainerDetails, 2000); // Refresh every 2 seconds
+    fetchContainerDetails();
+    const intervalId = setInterval(fetchContainerDetails, 60000); // Refresh every 2 seconds
 
     return () => clearInterval(intervalId); // Cleanup
   }, [agentId, containerId]); // Depend on agentId and containerId

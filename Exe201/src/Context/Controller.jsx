@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_BASE =
-  "https://9368-14-226-226-52.ngrok-free.app/joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7";
+  "https://f8df-14-226-226-52.ngrok-free.app/joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7";
 const OVERVIEW_ENDPOINT = "/agent/overview";
 const AGENT_LIST_ENDPOINT = "/agent/list";
 const SERVICE_LIST_ENDPOINT = "/server/availableService";
