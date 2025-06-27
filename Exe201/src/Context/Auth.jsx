@@ -1,39 +1,32 @@
 import axios from "axios";
 
-const API = "https://67c7faf7c19eb8753e7bae06.mockapi.io/api/huy/users";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_KEY = import.meta.env.VITE_API_KEY;
+const API_BASE = `${API_BASE_URL}/${API_KEY}`;
 
-export const handlelogin = async (email, password, setError) => {
-  try {
-    const response = await axios.get(API);
-    const users = response.data;
-    console.log("API Response:", users);
-    const user = users.find(
-      (u) => u.email === email && u.password === password
-    );
-    if (user) {
-      sessionStorage.setItem("userEmail", email);
-      return { success: true, message: "Login successful!" };
-    } else {
-      setError("Invalid username or password");
-      return { success: false };
-    }
-  } catch (err) {
-    console.error("API Error:", err.message, err.response);
-    setError("Error connecting to the server");
-    return { success: false };
-  }
-};
+const LOG_END_POINT = "login";
 
-export const handleregister = async (email, password, setError) => {
+export const handlelogin = async (username, password, setError) => {
   try {
-    const response = await axios.post(API, { email, password });
-    if (response.status === 201) {
+    const response = await axios.post(`${API_BASE}/${LOG_END_POINT}`, {
+      username,
+      password,
+    });
+    const result = response.data;
+    console.log("API Response:", result);
+
+    if (result === "success") {
+      sessionStorage.setItem("userName", username);
       return {
         success: true,
-        message: "Registration successful! Please login.",
+        message: "Login successful!",
+        redirectTo: "/home",
       };
+    } else if (result === "fail") {
+      setError("Invalid username or password");
+      return { message: "Login fail!", success: false };
     } else {
-      setError("Registration failed");
+      setError("Unexpected response from server");
       return { success: false };
     }
   } catch (err) {
@@ -42,3 +35,22 @@ export const handleregister = async (email, password, setError) => {
     return { success: false };
   }
 };
+
+// export const handleregister = async (email, password, setError) => {
+//   try {
+//     const response = await axios.post(API, { email, password });
+//     if (response.status === 201) {
+//       return {
+//         success: true,
+//         message: "Registration successful! Please login.",
+//       };
+//     } else {
+//       setError("Registration failed");
+//       return { success: false };
+//     }
+//   } catch (err) {
+//     console.error("API Error:", err.message, err.response);
+//     setError("Error connecting to the server");
+//     return { success: false };
+//   }
+// };

@@ -1,7 +1,7 @@
 import axios from "axios";
-
-const API_BASE =
-  "https://f8df-14-226-226-52.ngrok-free.app/joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_KEY = import.meta.env.VITE_API_KEY;
+const API_BASE = `${API_BASE_URL}/${API_KEY}`;
 const OVERVIEW_ENDPOINT = "/agent/overview";
 const AGENT_LIST_ENDPOINT = "/agent/list";
 const SERVICE_LIST_ENDPOINT = "/server/availableService";
@@ -31,7 +31,7 @@ export const handleRestoreBackup = async (
     const response = await axios.post(
       `${API_BASE}${RESTORE_BACK_UP_ENDPOINT}`,
       payload,
-      { timeout: 10000 } // Thêm timeout để tránh treo
+      { timeout: 600000 }
     );
     console.log("Restore response:", response.data);
 

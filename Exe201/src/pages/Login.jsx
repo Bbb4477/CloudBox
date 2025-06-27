@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import logo from "../assets/logov1.webp";
 import { handlelogin } from "../Context/Auth";
 import "../css/Login.css";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    const result = await handlelogin(email, password, setError);
+    const result = await handlelogin(username, password, setError);
     if (result.success) {
       alert(result.message);
       navigate("/home");
@@ -31,10 +31,10 @@ const Login = () => {
           <h5>Username or Email Address</h5>
           <input
             className="input_log"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="string"
+            placeholder="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
@@ -51,9 +51,7 @@ const Login = () => {
         </div>
         {error && <p className="error">{error}</p>}
         <div className="regis_n_log_btn">
-          <Link to="/register" className="regis_button">
-            Don't have an account?
-          </Link>
+          <div className="regis_button">Don't have an account?</div>
           <button className="login_button" type="submit">
             Log in
           </button>

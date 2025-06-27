@@ -10,9 +10,9 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const email = sessionStorage.getItem("userEmail");
-    if (email) {
-      setUserEmail(email);
+    const username = sessionStorage.getItem("userName");
+    if (username) {
+      setUserEmail(username);
     }
   }, []);
 
@@ -25,7 +25,7 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
   };
 
   const confirmLogout = () => {
-    sessionStorage.removeItem("userEmail");
+    sessionStorage.removeItem("userName");
     setUserEmail(null);
     navigate("/");
     setIsModalOpen(false);

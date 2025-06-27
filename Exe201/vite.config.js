@@ -5,9 +5,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: [
-      "dd32-2402-800-63b6-ad05-a842-942a-1ed1-bb4e.ngrok-free.app",
-      "0.0.0.0",
-    ],
+    allowedHosts: ["0.0.0.0"],
+  },
+  define: {
+    // Đảm bảo các biến môi trường có thể được truy cập trong mã nguồn
+    VITE_API_BASE_URL: JSON.stringify(process.env.VITE_API_BASE_URL),
+    VITE_API_KEY: JSON.stringify(process.env.VITE_API_KEY),
+    VITE_API_LOG: JSON.stringify(process.env.VITE_API_LOG),
+    VITE_API_LOG_END: JSON.stringify(process.env.VITE_API_LOG_END),
   },
 });
