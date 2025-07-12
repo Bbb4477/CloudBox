@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  server:
+    image: cloudbox_backend:v1.0.1
+    container_name: cloudbox_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FE_LOGIN_USERNAME=admin
+      - FE_LOGIN_PASSWORD=admin
+      - FE_API=joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7
+      - SHAREHOST=192.168.32.132
+      - LISTEN_PORT=5000
+    command: python Server.py
+    working_dir: /app
+    networks:
+      - app-network
+
+  frontend:
+    image: cloudbox_frontend:v1.0.1
+    container_name: cloudbox_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://192.168.32.130:5000/
+      - VITE_API_KEY=joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7
+      - VITE_API_LOG=""
+      - VITE_API_LOG_END=""
+    command: npm run dev -- --host
+    working_dir: /app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

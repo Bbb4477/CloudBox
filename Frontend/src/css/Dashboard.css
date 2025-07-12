@@ -1,0 +1,237 @@
+.dashboard_content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 100vh;
+  width: 100%;
+  background-color: azure;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.dashboard_header {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.agent-block {
+  border: 2px solid black;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 10px 0;
+  width: 100%;
+  max-width: 900px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: black;
+}
+
+.agent-info {
+  padding: 10px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.agent-info:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.agent-info:focus {
+  outline: 2px solid;
+  outline-offset: 2px;
+}
+
+.agent-info span:first-child {
+  font-weight: bold;
+  text-align: left;
+}
+
+.agent-info span:last-child {
+  font-style: italic;
+}
+
+.install-button {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #10b981;
+  color: #ffffff;
+  width: 40px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-button:hover,
+.install-button:focus {
+  background-color: #45a049;
+}
+
+.install-button:focus {
+  outline: 2px solid;
+  outline-offset: 2px;
+}
+
+.create-agent-button {
+  width: 116px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.create-agent-button:hover,
+.create-agent-button:focus {
+  background-color: #10b981;
+}
+
+.create-agent-button:focus {
+  outline: 2px solid;
+  outline-offset: 2px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h4 {
+  margin: 0 0 20px;
+  color: black;
+  font-size: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: 2px solid var(--btn-accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.modal-actions button:first-child {
+  background-color: var(--btn-accent);
+  color: #ffffff;
+}
+
+.modal-actions button:first-child:hover,
+.modal-actions button:first-child:focus {
+  background-color: var(--btn-accent-hover);
+}
+
+.modal-actions button:last-child {
+  background-color: #e5e7eb;
+  color: var(--text-primary);
+}
+
+.modal-actions button:last-child:hover,
+.modal-actions button:last-child:focus {
+  background-color: #d1d5db;
+}
+
+.success-message {
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.success-message p {
+  margin: 0;
+}
+
+.install-agent-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.install-agent-button:hover,
+.install-agent-button:focus {
+  background-color: #059669;
+}
+
+.install-agent-button:focus {
+  outline: 2px solid;
+  outline-offset: 2px;
+}
+
+.error {
+  color: #ef4444;
+  margin: 10px 0;
+}
+
+h3 {
+  font-weight: bold;
+  font-size: 24px;
+  margin: 0;
+  color: black;
+}

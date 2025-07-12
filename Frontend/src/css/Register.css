@@ -1,0 +1,69 @@
+.regi_page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  top: 100px;
+}
+
+.regi_form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+h2 {
+  display: flex;
+  justify-content: center;
+}
+
+.input_regi {
+  display: flex;
+  justify-content: center;
+  height: 50px;
+  width: 400px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.sign_btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 400px;
+  height: 40px;
+  margin: 20px auto;
+  background: linear-gradient(to right, #a7f3d0, #f9a8d4);
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.sign_btn:hover {
+  background: linear-gradient(
+    to right,
+    #75b298,
+    #d67ca6
+  ); /* Màu pastel đậm hơn */
+}
+
+.TOS_agree {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.go_to_log {
+  margin-left: 10px;
+  text-decoration: none;
+  color: black;
+  font-weight: 700;
+}
+
+.regi_logo {
+  width: 100px;
+}

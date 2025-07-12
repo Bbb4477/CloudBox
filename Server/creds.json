@@ -1,18 +1,13 @@
 {
-    "agents": {
-        "agent01": {
-            "host": "192.168.32.132:5000",
-            "description": "Ho Chi Minh",
-            "API": "JZU1a4iArzK81nxuqCaGjpkCnS6lQrpdPxBIEYyeAT8VUHCfnBhPs3ZgTvK784pL"
-        },
-        "agent02": {
-            "host": "192.168.32.133:5000",
-            "description": "Ly Xuan Mai",
-            "API": "fZPvgJ4B1z7m86WvdeX8vtCUpRlCqTQGvmFz7vGbXRLx5JidFbGxQvwfzjlI8Bsa"
+    "agents": {},
+    "admins": {
+        "Administrator": "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7"
+    },
+    "credentials": {
+        "admin": {
+            "password": "02fba25a2ec1fd2a9539c0ae7df48de7bf052929fa6cb486f561931f0f1056f5"
         }
     },
-    "admins": {
-        "Administrator": "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7",
-        "bbb": "OarARnGRqZ1JXAqoLrgDyaapQKbDsYrWEtPNCyn43MEo7kSA16U5lE6pUuMR06aD"
-    }
+    "sharehost": "192.168.32.132",
+    "listenport": 5000
 }

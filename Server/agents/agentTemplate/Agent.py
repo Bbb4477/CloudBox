@@ -405,9 +405,9 @@ def stopBox(arg: str) -> bytes:
 
     try:
         run_command(f"tmux send-keys -t {box_name} C-c")
-        sleep(3)
+        sleep(4)
         run_command(f"tmux send-keys -t {box_name} 'docker-compose down' C-m")
-        sleep(2)
+        sleep(4)
         run_command(f"tmux kill-session -t {box_name}")
 
         # Revert Docker Compose file to use PORT placeholder
@@ -1147,15 +1147,53 @@ def stopAgentStats() -> bytes:
     except Exception as e:
         return f"[Agent] Error stopping stats session: {e}".encode()
 
+# def listBackup(boxID: str) -> bytes:
+#     DOCKER_REFERENCE_PATH = run_command("pwd") + f"/Box/{boxID}/Backup"
+#     services = [
+#         name for name in os.listdir(DOCKER_REFERENCE_PATH)
+#         if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+#     ]
+#     joined = ' '.join(services)
+#     b = joined.encode()
+#     return b
+
 def listBackup(boxID: str) -> bytes:
-    DOCKER_REFERENCE_PATH = run_command("pwd") + f"/Box/{boxID}/Backup"
-    services = [
-        name for name in os.listdir(DOCKER_REFERENCE_PATH)
-        if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
-    ]
-    joined = ' '.join(services)
-    b = joined.encode()
-    return b
+    """
+    List backup directories for a given boxID.
+
+    Args:
+        boxID (str): The unique identifier of the box.
+
+    Returns:
+        bytes: Space-separated list of backup directories encoded as bytes, or '[]' if no backups exist.
+    """
+    try:
+        # Get current working directory and construct backup path
+        DOCKER_REFERENCE_PATH = subprocess.run(["pwd"], capture_output=True,
+                                               text=True).stdout.strip() + f"/Box/{boxID}/Backup"
+
+        # Check if the backup directory exists
+        if not os.path.exists(DOCKER_REFERENCE_PATH):
+            logging.info(f"No backup directory found for box {boxID} at {DOCKER_REFERENCE_PATH}")
+            return b"none"
+
+        # List directories in the backup path
+        services = [
+            name for name in os.listdir(DOCKER_REFERENCE_PATH)
+            if os.path.isdir(os.path.join(DOCKER_REFERENCE_PATH, name))
+        ]
+        # If no backups found, return empty list
+        if not services:
+            logging.info(f"No backups found for box {boxID}")
+            return b"none"
+
+        # Join services and encode as bytes
+        joined = ' '.join(services)
+        return joined.encode()
+
+    except Exception as e:
+        logging.error(f"Error listing backups for box {boxID}: {str(e)}")
+        return b"none"
 
 def getBackupPath(backupID: str) -> str:
     return

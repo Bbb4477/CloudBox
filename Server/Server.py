@@ -18,6 +18,8 @@ import fcntl
 import secrets
 import shutil
 import tarfile
+import hashlib
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
@@ -708,7 +710,7 @@ def AgentCreateAPI(api_key):
     # Generate download URL using server IP and port
     server_host = request.host
     # download_url = f"http://{server_host}/{api_key}/agents/agentDynamic/{archive_name}"
-    download_url = f"{SHAREHOSTDEMO}/{api_key}/agents/agentDynamic/{archive_name}"
+    download_url = f"{sharehost}/{api_key}/agents/agentDynamic/{archive_name}"
     load_creds()
     return jsonify(json.dumps({
         "agentID": agent_id,
@@ -740,6 +742,30 @@ def AgentRemoveAPI(api_key):
         return jsonify({"message": f"Agent {agent_id} removed successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to remove agent {agent_id}: {str(e)}"}), 500
+
+@app.route('/<api_key>/login', methods=['POST'])
+def loginCredentials(api_key):
+    creds_data = load_creds()
+    if check_api(api_key, creds_data) != "admin":
+        return jsonify({"error": "Invalid API key."}), 403
+
+    data = request.get_json()
+    if not data or "username" not in data:
+        return jsonify({"error": "Missing username in JSON body"}), 400
+    if not data or "password" not in data:
+        return jsonify({"error": "Missing password in JSON body"}), 400
+
+    username = data["username"]
+    if username not in creds_data["credentials"]:
+        return jsonify("fail")
+
+    input_password = data["password"]
+    hashed_input = hashlib.sha256(input_password.encode()).hexdigest()
+    stored_password = creds_data["credentials"][username]["password"]
+
+    if hashed_input == stored_password:
+        return jsonify("success")
+    return jsonify("fail")
 
 # @app.route('/<api_key>/agent/connectBox', methods=['POST'])
 # def proxyConnectAPI(api_key):
@@ -985,8 +1011,10 @@ def load_creds():
     with open(lock_file, "w") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
-            with open(creds_file, "r") as f:
-                return json.load(f) if os.path.getsize(creds_file) > 0 else {"agents": {}, "admins": {}}
+            if os.path.exists(creds_file) and os.path.getsize(creds_file) > 0:
+                with open(creds_file, "r") as f:
+                    return json.load(f)
+            return {"agents": {}, "admins": {}, "credentials": {}, "sharehost": "", "listenport": 5000}
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
@@ -1028,8 +1056,50 @@ def download_agent(api_key, archive_name):
     return send_file(archive_path, as_attachment=True, download_name=archive_name)
 
 
-
 if __name__ == '__main__':
-    SHAREHOSTDEMO="https://9368-14-226-226-52.ngrok-free.app"
-    app.run(host="0.0.0.0", port=5000)
-    # print(check_agent_status(creds["agents"]["agent01"]["host"]))
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # Check for required environment variables
+    required_env_vars = ['FE_LOGIN_USERNAME', 'FE_LOGIN_PASSWORD', 'SHAREHOST', 'LISTEN_PORT', 'FE_API']
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
+        exit(1)
+
+    # Get environment variables
+    username = os.getenv('FE_LOGIN_USERNAME')
+    password = os.getenv('FE_LOGIN_PASSWORD')
+    sharehost = os.getenv('SHAREHOST')
+    listen_port = os.getenv('LISTEN_PORT')
+    api_key = os.getenv('FE_API')
+
+    # Validate listen port
+    try:
+        listen_port = int(listen_port)
+        if not (1 <= listen_port <= 65535):
+            raise ValueError
+    except ValueError:
+        print("Error: LISTEN_PORT must be a valid port number (1-65535)")
+        exit(1)
+
+    # Load existing credentials
+    creds = load_creds()
+
+    # Update credentials with hashed password
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    creds['credentials'][username] = {"password": f"{hashed_password}"}
+
+    # Update admins with API key for Administrator
+    creds['admins']['Administrator'] = api_key
+
+    # Update sharehost and listen port
+    creds['sharehost'] = sharehost
+    creds['listenport'] = listen_port
+
+    # Save updated credentials
+    save_creds(creds)
+
+    # Start Flask app
+    print(f"Starting server on {sharehost}:{listen_port}")
+    app.run(host="0.0.0.0", port=listen_port)

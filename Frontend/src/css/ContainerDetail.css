@@ -1,0 +1,20 @@
+.container-detail {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background-color: azure;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.detail-section {
+  color: black;
+}
+
+.stats-section {
+  border: 2px solid;
+  margin-bottom: 26px;
+  padding: 16px;
+}

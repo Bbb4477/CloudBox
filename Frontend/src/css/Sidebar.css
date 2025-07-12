@@ -1,0 +1,182 @@
+:root {
+  --sidebar-expanded-width: 150px;
+  --sidebar-collapsed-width: 50px;
+}
+
+.sidebar {
+  height: 100vh;
+  background-color: #152238;
+  border-radius: 0 8px 8px 0;
+  transition: width 0.3s ease;
+  margin-left: 0;
+  padding-left: 0;
+  overflow: hidden;
+}
+
+.sidebar.expanded {
+  width: var(--sidebar-expanded-width);
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+.logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.logo-container:hover {
+  background-color: none;
+}
+
+.logo-container.active {
+  background-color: none;
+}
+
+.sidebar-logo {
+  width: 116px;
+  height: auto;
+  transition: width 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  width: 30px;
+}
+
+.logo-link {
+  background: none !important;
+  padding: 0;
+}
+
+.logo-link:hover,
+.logo-link.active {
+  background: none !important;
+  color: inherit !important;
+}
+
+.logo-link:focus {
+  outline: none;
+}
+
+.toggle-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: azure;
+  cursor: pointer;
+  padding: 10px;
+  width: 100%;
+  text-align: center;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+li {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  font-weight: bold;
+  color: azure;
+  position: relative;
+}
+
+li:hover {
+  background-color: #5a9bd4;
+}
+
+li.user-info {
+  margin-top: 20px;
+  display: flex;
+  padding-left: 15px; /* Match NavLink padding */
+  align-items: center;
+}
+
+li.user-info:hover {
+  background: none;
+}
+
+.sidebar.collapsed li.user-info {
+  justify-content: center; /* Center icon in collapsed mode */
+  padding-left: 0; /* Remove padding for centering */
+}
+
+li.user-info .icon {
+  font-size: 20px;
+  margin-right: 10px; /* Space between icon and text in expanded mode */
+}
+
+.sidebar.collapsed li.user-info .icon {
+  margin-right: 0; /* Remove margin in collapsed mode */
+}
+
+.sidebar.collapsed li.user-info .text {
+  display: none; /* Hide email text in collapsed mode */
+}
+
+li.logout {
+  position: relative;
+  font-weight: bold;
+  top: 420px;
+}
+
+a,
+button {
+  text-decoration: none;
+  color: azure;
+  font-size: 16px;
+  padding: 10px 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 15px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+a .icon,
+button .icon {
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.sidebar.collapsed a .text,
+.sidebar.collapsed button .text {
+  display: none;
+}
+
+.sidebar.collapsed a:hover .text,
+.sidebar.collapsed button:hover .text {
+  display: block;
+  position: absolute;
+  left: 50px;
+  background: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+a:hover,
+button:hover {
+  color: white;
+}
+
+a.active {
+  background: #5a9bd4;
+  color: white;
+}

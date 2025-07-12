@@ -1,0 +1,137 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: white;
+  color: black; /* Base text color */
+  padding: 20px;
+  border-radius: 8px;
+  width: 500px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-content h3,
+.modal-content p,
+.modal-content li,
+.modal-content .loading-content p {
+  /* Ensure Loading text matches */
+  color: black; /* Explicitly set for all text elements */
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.backup-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.backup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.backup-service,
+.backup-time,
+.backup-date {
+  margin-right: 20px; /* Adjust spacing between elements */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+.backup-service {
+  flex: 1; /* Allow service name to grow but not overflow */
+  min-width: 0; /* Ensure it can shrink */
+}
+
+.backup-time {
+  width: 100px; /* Fixed width for time */
+}
+
+.backup-date {
+  width: 100px; /* Fixed width for date */
+}
+
+.backup-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.backup-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.delete-btn {
+  background-color: #ff4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #cc0000;
+}
+
+.restore-btn {
+  background-color: #10b981; /* Green for restore */
+  color: white;
+}
+
+.restore-btn:hover {
+  background-color: #0e9f6f;
+}
+
+.modal-close-btn {
+  display: block;
+  margin: 20px auto 0;
+  padding: 8px 16px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  background: #cc0000;
+}
+
+.add_backup {
+  background-color: #10b981;
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+}
+
+.add_backup:hover {
+  background-color: #0e9f6f;
+}
+
+.backup_title {
+  display: flex;
+  justify-content: space-between;
+}
