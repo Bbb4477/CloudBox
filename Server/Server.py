@@ -709,8 +709,8 @@ def AgentCreateAPI(api_key):
 
     # Generate download URL using server IP and port
     server_host = request.host
-    # download_url = f"http://{server_host}/{api_key}/agents/agentDynamic/{archive_name}"
-    download_url = f"{sharehost}/{api_key}/agents/agentDynamic/{archive_name}"
+    download_url = f"http://{server_host}/{api_key}/agents/agentDynamic/{archive_name}"
+    #download_url = f"{sharehost}/{api_key}/agents/agentDynamic/{archive_name}"
     load_creds()
     return jsonify(json.dumps({
         "agentID": agent_id,

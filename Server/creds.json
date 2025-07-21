@@ -1,11 +1,12 @@
 {
-    "agents": {},
+    "agents": {
+    },
     "admins": {
         "Administrator": "joQitzSI4jenCsIbJ1cLfw4uDgIBeayztKer41HH4jr1QDTXQYivOqcqYAk3I3c7"
     },
     "credentials": {
         "admin": {
-            "password": "02fba25a2ec1fd2a9539c0ae7df48de7bf052929fa6cb486f561931f0f1056f5"
+            "password": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
         }
     },
     "sharehost": "192.168.32.132",
